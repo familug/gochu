@@ -424,6 +424,7 @@ name = "gochu-ibus"
 version = "0.1.0"
 dependencies = [
  "gochu-core",
+ "serde",
  "tokio",
  "zbus",
 ]

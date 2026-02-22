@@ -11,3 +11,4 @@ path = "src/main.rs"
 gochu-core = { path = "../gochu-core" }
 zbus = { version = "4", default-features = false, features = ["tokio"] }
 tokio = { version = "1", features = ["macros", "rt"] }
+serde = "1"

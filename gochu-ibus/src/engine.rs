@@ -1,5 +1,4 @@
 use gochu_core::{Action, TelexEngine};
-use zbus::object_server::SignalContext;
 use zbus::zvariant::{OwnedObjectPath, Value};
 use zbus::{interface, Connection};
 
@@ -15,43 +14,65 @@ const XK_RETURN: u32 = 0xff0d;
 const XK_ESCAPE: u32 = 0xff1b;
 const XK_KP_ENTER: u32 = 0xff8d;
 
+const ENGINE_IFACE: &str = "org.freedesktop.IBus.Engine";
+
 pub struct GochuEngine {
     telex: TelexEngine,
+    conn: Connection,
+    path: String,
 }
 
 impl GochuEngine {
-    pub fn new() -> Self {
+    pub fn new(conn: Connection, path: String) -> Self {
         Self {
             telex: TelexEngine::new(),
+            conn,
+            path,
         }
     }
 
-    async fn commit(&self, ctxt: &SignalContext<'_>, text: &str) {
+    async fn emit(&self, signal: &str, body: &(impl serde::Serialize + zbus::zvariant::DynamicType)) {
+        match self.conn.emit_signal(
+            Option::<&str>::None,
+            self.path.as_str(),
+            ENGINE_IFACE,
+            signal,
+            body,
+        ).await {
+            Ok(()) => {}
+            Err(e) => crate::log(&format!("signal {signal} error: {e}")),
+        }
+    }
+
+    async fn commit(&self, text: &str) {
         if !text.is_empty() {
-            let _ = Self::commit_text(ctxt, ibus_text(text)).await;
+            crate::log(&format!("commit: {text:?}"));
+            self.emit("CommitText", &(ibus_text(text),)).await;
         }
     }
 
-    async fn preedit(&self, ctxt: &SignalContext<'_>, text: &str) {
+    async fn preedit(&self, text: &str) {
         if text.is_empty() {
-            let _ = Self::hide_preedit_text(ctxt).await;
+            self.emit("HidePreeditText", &()).await;
         } else {
             let cursor = text.chars().count() as u32;
-            let _ =
-                Self::update_preedit_text(ctxt, ibus_text(text), cursor, true).await;
+            self.emit("UpdatePreeditText", &(ibus_text(text), cursor, true)).await;
         }
     }
 
-    /// Commit any pending composing text and reset the engine.
-    async fn flush(&mut self, ctxt: &SignalContext<'_>) {
+    async fn hide_preedit(&self) {
+        self.emit("HidePreeditText", &()).await;
+    }
+
+    async fn flush(&mut self) {
         if !self.telex.is_composing() {
             return;
         }
         let pending = self.telex.get_display();
         self.telex.reset();
-        let _ = Self::hide_preedit_text(ctxt).await;
+        self.hide_preedit().await;
         if !pending.is_empty() {
-            self.commit(ctxt, &pending).await;
+            self.commit(&pending).await;
         }
     }
 }
@@ -60,7 +81,6 @@ impl GochuEngine {
 impl GochuEngine {
     async fn process_key_event(
         &mut self,
-        #[zbus(signal_context)] ctxt: SignalContext<'_>,
         keyval: u32,
         _keycode: u32,
         state: u32,
@@ -69,20 +89,19 @@ impl GochuEngine {
             return false;
         }
 
-        // Modifier combos: flush composing text, let IBus handle the key
         if state & (IBUS_CONTROL_MASK | IBUS_MOD1_MASK | IBUS_SUPER_MASK) != 0 {
-            self.flush(&ctxt).await;
+            self.flush().await;
             return false;
         }
 
         match keyval {
             XK_RETURN | XK_KP_ENTER => {
-                self.flush(&ctxt).await;
+                self.flush().await;
                 return false;
             }
             XK_ESCAPE => {
                 self.telex.reset();
-                let _ = Self::hide_preedit_text(&ctxt).await;
+                self.hide_preedit().await;
                 return false;
             }
             _ => {}
@@ -92,20 +111,19 @@ impl GochuEngine {
             XK_BACKSPACE => '\x08',
             0x20..=0x7e => keyval as u8 as char,
             _ => {
-                // Unknown key (arrows, F-keys, etc.): flush and forward
-                self.flush(&ctxt).await;
+                self.flush().await;
                 return false;
             }
         };
 
         match self.telex.process_key(ch) {
             Action::Composing(text) => {
-                self.preedit(&ctxt, &text).await;
+                self.preedit(&text).await;
                 true
             }
             Action::Commit(text) => {
-                let _ = Self::hide_preedit_text(&ctxt).await;
-                self.commit(&ctxt, &text).await;
+                self.hide_preedit().await;
+                self.commit(&text).await;
                 true
             }
         }
@@ -113,27 +131,18 @@ impl GochuEngine {
 
     fn focus_in(&mut self) {}
 
-    async fn focus_out(
-        &mut self,
-        #[zbus(signal_context)] ctxt: SignalContext<'_>,
-    ) {
-        self.flush(&ctxt).await;
+    async fn focus_out(&mut self) {
+        self.flush().await;
     }
 
-    async fn reset(
-        &mut self,
-        #[zbus(signal_context)] ctxt: SignalContext<'_>,
-    ) {
-        self.flush(&ctxt).await;
+    async fn reset(&mut self) {
+        self.flush().await;
     }
 
     fn enable(&mut self) {}
 
-    async fn disable(
-        &mut self,
-        #[zbus(signal_context)] ctxt: SignalContext<'_>,
-    ) {
-        self.flush(&ctxt).await;
+    async fn disable(&mut self) {
+        self.flush().await;
     }
 
     fn set_cursor_location(&self, _x: i32, _y: i32, _w: i32, _h: i32) {}
@@ -146,23 +155,6 @@ impl GochuEngine {
     fn set_content_type(&self, _purpose: u32, _hints: u32) {}
     fn set_surrounding_text(&self, _text: Value<'_>, _cursor_index: u32, _anchor_pos: u32) {}
     fn destroy(&mut self) {}
-
-    #[zbus(signal)]
-    async fn commit_text(
-        ctxt: &SignalContext<'_>,
-        text: Value<'_>,
-    ) -> zbus::Result<()>;
-
-    #[zbus(signal)]
-    async fn update_preedit_text(
-        ctxt: &SignalContext<'_>,
-        text: Value<'_>,
-        cursor_pos: u32,
-        visible: bool,
-    ) -> zbus::Result<()>;
-
-    #[zbus(signal)]
-    async fn hide_preedit_text(ctxt: &SignalContext<'_>) -> zbus::Result<()>;
 }
 
 // -- Factory: IBus calls CreateEngine to instantiate engines --
@@ -185,13 +177,15 @@ impl GochuFactory {
 impl GochuFactory {
     async fn create_engine(
         &mut self,
-        _engine_name: &str,
+        engine_name: &str,
     ) -> zbus::fdo::Result<OwnedObjectPath> {
         let n = self.engine_count;
         self.engine_count += 1;
 
         let path = format!("/org/freedesktop/IBus/Engine/{n}");
-        let engine = GochuEngine::new();
+        crate::log(&format!("CreateEngine({engine_name:?}) -> {path}"));
+
+        let engine = GochuEngine::new(self.conn.clone(), path.clone());
 
         self.conn
             .object_server()

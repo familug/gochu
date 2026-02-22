@@ -6,6 +6,19 @@ mod engine;
 mod text;
 
 const BUS_NAME: &str = "org.freedesktop.IBus.Gochu";
+const LOG_PATH: &str = "/tmp/gochu-ibus.log";
+
+pub(crate) fn log(msg: &str) {
+    eprintln!("gochu: {msg}");
+    use std::io::Write;
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(LOG_PATH)
+    {
+        let _ = writeln!(f, "{msg}");
+    }
+}
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
