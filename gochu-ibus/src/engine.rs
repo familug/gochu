@@ -1,6 +1,6 @@
 use gochu_core::{Action, TelexEngine};
-use zbus::zvariant::{OwnedObjectPath, Value};
-use zbus::{interface, Connection};
+use zbus::zvariant::{DynamicType, OwnedObjectPath, Value};
+use zbus::{interface, Connection, Message};
 
 use crate::text::ibus_text;
 
@@ -31,37 +31,51 @@ impl GochuEngine {
         }
     }
 
-    async fn emit(&self, signal: &str, body: &(impl serde::Serialize + zbus::zvariant::DynamicType)) {
-        match self.conn.emit_signal(
-            Option::<&str>::None,
+    async fn send_signal<B: serde::Serialize + DynamicType>(
+        &self,
+        signal: &str,
+        body: &B,
+    ) {
+        let sig = body.dynamic_signature();
+        match Message::signal(
             self.path.as_str(),
             ENGINE_IFACE,
             signal,
-            body,
-        ).await {
-            Ok(()) => {}
-            Err(e) => crate::log(&format!("signal {signal} error: {e}")),
+        ) {
+            Ok(builder) => match builder.build(body) {
+                Ok(msg) => {
+                    if let Err(e) = self.conn.send(&msg).await {
+                        crate::log(&format!("{signal} send error: {e}"));
+                    }
+                }
+                Err(e) => crate::log(&format!("{signal} build error (sig={sig}): {e}")),
+            },
+            Err(e) => crate::log(&format!("{signal} builder error: {e}")),
         }
     }
 
     async fn commit(&self, text: &str) {
         if !text.is_empty() {
             crate::log(&format!("commit: {text:?}"));
-            self.emit("CommitText", &(ibus_text(text),)).await;
+            self.send_signal("CommitText", &ibus_text(text)).await;
         }
     }
 
     async fn preedit(&self, text: &str) {
         if text.is_empty() {
-            self.emit("HidePreeditText", &()).await;
+            self.send_signal("HidePreeditText", &()).await;
         } else {
             let cursor = text.chars().count() as u32;
-            self.emit("UpdatePreeditText", &(ibus_text(text), cursor, true)).await;
+            self.send_signal(
+                "UpdatePreeditText",
+                &(ibus_text(text), cursor, true),
+            )
+            .await;
         }
     }
 
     async fn hide_preedit(&self) {
-        self.emit("HidePreeditText", &()).await;
+        self.send_signal("HidePreeditText", &()).await;
     }
 
     async fn flush(&mut self) {
