@@ -43,47 +43,73 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .at("/org/freedesktop/IBus/Factory", factory)
         .await?;
 
-    // Tell IBus which component we are so it can route CreateEngine to us
-    conn.request_name(BUS_NAME).await?;
-
-    eprintln!("gochu-ibus: ready (name {BUS_NAME} acquired)");
+    log("ready");
 
     std::future::pending::<()>().await;
     Ok(())
 }
 
+/// Connect to the IBus private bus in peer-to-peer mode.
+///
+/// Using p2p mode is critical: libibus engines communicate directly with
+/// the daemon over the raw socket. The daemon's engine proxy (GDBusProxy
+/// with name=NULL) listens for signals on the direct connection, NOT
+/// through bus signal routing. A zbus "bus" connection (which calls Hello)
+/// sends signals through the bus routing layer, which the daemon's proxy
+/// never sees.
+///
+/// We connect p2p, then manually call Hello + RequestName on the daemon's
+/// org.freedesktop.DBus interface so it assigns us a name and knows which
+/// component we are.
 async fn connect_ibus() -> Result<zbus::Connection, Box<dyn Error>> {
-    // Strategy 1: IBUS_ADDRESS environment variable (set by IBus daemon for children)
-    if let Ok(addr) = env::var("IBUS_ADDRESS") {
-        eprintln!("gochu-ibus: connecting via IBUS_ADDRESS={addr}");
-        let address: zbus::Address = addr.as_str().try_into()?;
-        let conn = zbus::connection::Builder::address(address)?
-            .build()
-            .await?;
-        return Ok(conn);
-    }
+    let addr = find_ibus_address_str()?;
+    log(&format!("connecting to {addr}"));
 
-    // Strategy 2: read address from ~/.config/ibus/bus/ files
-    if let Some(addr) = find_ibus_address() {
-        eprintln!("gochu-ibus: connecting via socket file: {addr}");
-        let address: zbus::Address = addr.as_str().try_into()?;
-        let conn = zbus::connection::Builder::address(address)?
-            .build()
-            .await?;
-        return Ok(conn);
-    }
+    let address: zbus::Address = addr.as_str().try_into()?;
+    let conn = zbus::connection::Builder::address(address)?
+        .p2p()
+        .build()
+        .await?;
 
-    // Strategy 3: session bus (unlikely to work for IBus, but last resort)
-    eprintln!("gochu-ibus: warning: no IBus address found, trying session bus");
-    Ok(zbus::Connection::session().await?)
+    // Manually call Hello — the IBus daemon implements org.freedesktop.DBus
+    let reply = conn
+        .call_method(
+            None::<&str>,
+            "/org/freedesktop/DBus",
+            Some("org.freedesktop.DBus"),
+            "Hello",
+            &(),
+        )
+        .await?;
+    let name: String = reply.body().deserialize()?;
+    log(&format!("Hello: {name}"));
+
+    // Request our well-known name so IBus associates us with the component
+    let reply = conn
+        .call_method(
+            None::<&str>,
+            "/org/freedesktop/DBus",
+            Some("org.freedesktop.DBus"),
+            "RequestName",
+            &(BUS_NAME, 0u32),
+        )
+        .await?;
+    let result: u32 = reply.body().deserialize()?;
+    log(&format!("RequestName({BUS_NAME}): {result}"));
+
+    Ok(conn)
 }
 
-/// Discover the IBus private bus address from ~/.config/ibus/bus/.
-///
-/// IBus names the file `{machine_id}-{hostname}-{display_num}`.
-/// Instead of guessing the hostname format (which varies between
-/// /etc/hostname and uname nodename), we list the directory and match
-/// by machine-id prefix, picking the most recently modified file.
+fn find_ibus_address_str() -> Result<String, Box<dyn Error>> {
+    if let Ok(addr) = env::var("IBUS_ADDRESS") {
+        return Ok(addr);
+    }
+    if let Some(addr) = find_ibus_address() {
+        return Ok(addr);
+    }
+    Err("no IBus address found (IBUS_ADDRESS not set, no socket file)".into())
+}
+
 fn find_ibus_address() -> Option<String> {
     let machine_id = read_machine_id()?;
     let config_home = env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| {

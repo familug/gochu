@@ -9,6 +9,6 @@ path = "src/main.rs"
 
 [dependencies]
 gochu-core = { path = "../gochu-core" }
-zbus = { version = "4", default-features = false, features = ["tokio"] }
+zbus = { version = "4", default-features = false, features = ["tokio", "p2p"] }
 tokio = { version = "1", features = ["macros", "rt"] }
 serde = "1"
