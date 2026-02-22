@@ -2,7 +2,7 @@
 <component>
   <name>org.freedesktop.IBus.Gochu</name>
   <description>Gochu Vietnamese Telex Input Method</description>
-  <exec>gochu-ibus --ibus</exec>
+  <exec>/usr/local/bin/gochu-ibus --ibus</exec>
   <version>0.1.0</version>
   <author>gochu</author>
   <license>MIT</license>

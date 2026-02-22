@@ -11,7 +11,10 @@ echo "Installing binary to $PREFIX/bin/gochu-ibus"
 install -Dm755 target/release/gochu-ibus "$PREFIX/bin/gochu-ibus"
 
 echo "Installing IBus component to $IBUS_COMPONENT_DIR/gochu.xml"
-install -Dm644 gochu-ibus/data/gochu.xml "$IBUS_COMPONENT_DIR/gochu.xml"
+sed "s|/usr/local/bin/gochu-ibus|$PREFIX/bin/gochu-ibus|g" \
+    gochu-ibus/data/gochu.xml > /tmp/gochu-ibus-component.xml
+install -Dm644 /tmp/gochu-ibus-component.xml "$IBUS_COMPONENT_DIR/gochu.xml"
+rm -f /tmp/gochu-ibus-component.xml
 
 echo ""
 echo "Done. To activate:"
