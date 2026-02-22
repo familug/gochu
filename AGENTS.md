@@ -130,8 +130,8 @@ cargo test -p gochu-core
 # Run WASM integration tests
 wasm-pack test --node gochu-wasm
 
-# Build WASM (output goes to docs/pkg/)
-wasm-pack build gochu-wasm --target web --out-dir ../docs/pkg
+# Build WASM (output goes to docs/pkg/, removes generated .gitignore)
+./build.sh
 
 # Serve locally
 cd docs && python3 -m http.server 8080

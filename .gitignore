@@ -1,1 +1,4 @@
-/target
+/target/
+
+# wasm-pack generates docs/pkg/.gitignore with "*" — force-include pkg assets
+!docs/pkg/

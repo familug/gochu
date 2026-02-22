@@ -1,0 +1,15 @@
+{
+  "name": "gochu-wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "gochu_wasm_bg.wasm",
+    "gochu_wasm.js",
+    "gochu_wasm.d.ts"
+  ],
+  "main": "gochu_wasm.js",
+  "types": "gochu_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
