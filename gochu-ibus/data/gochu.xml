@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component>
+  <name>org.freedesktop.IBus.Gochu</name>
+  <description>Gochu Vietnamese Telex Input Method</description>
+  <exec>gochu-ibus --ibus</exec>
+  <version>0.1.0</version>
+  <author>gochu</author>
+  <license>MIT</license>
+  <textdomain>gochu</textdomain>
+  <engines>
+    <engine>
+      <name>gochu-telex</name>
+      <language>vi</language>
+      <license>MIT</license>
+      <author>gochu</author>
+      <icon>input-keyboard</icon>
+      <layout>us</layout>
+      <longname>Gochu Telex</longname>
+      <description>Vietnamese Telex Input Method</description>
+      <rank>99</rank>
+    </engine>
+  </engines>
+</component>

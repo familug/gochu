@@ -6,7 +6,7 @@ Vietnamese Telex input method engine. Core written in Rust (no_std compatible), 
 
 ```
 gochu/
-├── Cargo.toml              # Workspace root (members: gochu-core, gochu-wasm), resolver = "2"
+├── Cargo.toml              # Workspace root (members: gochu-core, gochu-wasm, gochu-ibus), resolver = "2"
 ├── gochu-core/             # Pure Rust Telex engine — ZERO external dependencies
 │   ├── Cargo.toml          # Features: default=["std"], std=[]
 │   └── src/
@@ -19,6 +19,14 @@ gochu/
 │   ├── Cargo.toml          # crate-type = ["cdylib", "rlib"], deps: gochu-core (no default-features), wasm-bindgen, js-sys
 │   ├── src/lib.rs           # Gochu struct wrapping TelexEngine, exposed to JS
 │   └── tests/web.rs         # wasm-bindgen-test integration tests (run via Node.js)
+├── gochu-ibus/             # Native IBus input method engine (Linux + OpenBSD)
+│   ├── Cargo.toml          # deps: gochu-core, zbus 4, tokio
+│   ├── src/
+│   │   ├── main.rs          # Entry point: IBus address lookup, D-Bus connection, factory registration
+│   │   ├── engine.rs        # IBus Engine + Factory D-Bus interfaces (wraps gochu-core TelexEngine)
+│   │   └── text.rs          # IBusText/IBusAttrList GVariant construction
+│   ├── data/gochu.xml       # IBus component descriptor (engine name, language, icon)
+│   └── install.sh           # Build + install binary and component XML
 └── docs/                   # Static web frontend (no bundler), served by GitHub Pages from /docs
     ├── index.html           # Semantic HTML, accessibility attributes, meta tags
     ├── style.css            # All styles; CSS custom properties; light/dark via prefers-color-scheme; mobile breakpoint at 480px
@@ -152,6 +160,40 @@ cargo audit
 | uw    | ư      | z     | remove tone |
 | dd    | đ      |       |        |
 
-## Future Plans
+## Native IBus Engine (gochu-ibus)
 
-The `gochu-core` crate is designed to be reused in a native Linux IBus or Fcitx5 input method plugin, sharing 100% of the Telex logic with the WASM version.
+A native input method engine for Ubuntu Linux and OpenBSD using the IBus framework over D-Bus.
+
+**Architecture:** Pure Rust, no C dependencies. Uses `zbus` (pure Rust D-Bus implementation) to communicate with the IBus daemon. Reuses `gochu-core` for all Telex logic.
+
+**D-Bus interfaces implemented:**
+- `org.freedesktop.IBus.Factory` — `CreateEngine(name) -> ObjectPath`. IBus calls this to instantiate engines.
+- `org.freedesktop.IBus.Engine` — `ProcessKeyEvent(keyval, keycode, state) -> bool` plus `FocusIn/Out`, `Reset`, `Enable/Disable`. Emits signals: `CommitText`, `UpdatePreeditText`, `HidePreeditText`.
+
+**IBusText serialization** (`text.rs`): Constructs the GVariant `(sa{sv}sv)` format that IBus expects. IBusText wraps the text string and an IBusAttrList `(sa{sv}av)`.
+
+**Key event handling:** Maps X11 keysyms (0x20–0x7e for printable ASCII, 0xff08 for BackSpace) to chars, ignores release events and Ctrl/Alt/Super modifiers, feeds to `TelexEngine::process_key()`.
+
+**Connection:** Reads `IBUS_ADDRESS` env var (set by IBus when launching engines), falls back to socket file at `~/.config/ibus/bus/`, then session bus.
+
+**Install:**
+
+```bash
+# Build
+cargo build --release -p gochu-ibus
+
+# Install (run from repo root, needs sudo for system dirs)
+sudo install -Dm755 target/release/gochu-ibus /usr/local/bin/gochu-ibus
+sudo install -Dm644 gochu-ibus/data/gochu.xml /usr/share/ibus/component/gochu.xml
+
+# Or use the script:
+sudo gochu-ibus/install.sh
+
+# Activate
+ibus restart
+# Then add "Gochu Telex" in Settings > Keyboard > Input Sources
+```
+
+**Cross-platform notes:**
+- Ubuntu: IBus is the default. Component XML goes to `/usr/share/ibus/component/`.
+- OpenBSD: IBus available in ports (`pkg_add ibus`). Component XML goes to `/usr/local/share/ibus/component/`. Set `IBUS_COMPONENT_DIR` when running install.sh.
