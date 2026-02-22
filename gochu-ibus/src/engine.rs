@@ -9,7 +9,11 @@ const IBUS_RELEASE_MASK: u32 = 1 << 30;
 const IBUS_CONTROL_MASK: u32 = 1 << 2;
 const IBUS_MOD1_MASK: u32 = 1 << 3;
 const IBUS_SUPER_MASK: u32 = 1 << 26;
+
 const XK_BACKSPACE: u32 = 0xff08;
+const XK_RETURN: u32 = 0xff0d;
+const XK_ESCAPE: u32 = 0xff1b;
+const XK_KP_ENTER: u32 = 0xff8d;
 
 pub struct GochuEngine {
     telex: TelexEngine,
@@ -37,6 +41,19 @@ impl GochuEngine {
                 Self::update_preedit_text(ctxt, ibus_text(text), cursor, true).await;
         }
     }
+
+    /// Commit any pending composing text and reset the engine.
+    async fn flush(&mut self, ctxt: &SignalContext<'_>) {
+        if !self.telex.is_composing() {
+            return;
+        }
+        let pending = self.telex.get_display();
+        self.telex.reset();
+        let _ = Self::hide_preedit_text(ctxt).await;
+        if !pending.is_empty() {
+            self.commit(ctxt, &pending).await;
+        }
+    }
 }
 
 #[interface(name = "org.freedesktop.IBus.Engine")]
@@ -51,17 +68,34 @@ impl GochuEngine {
         if state & IBUS_RELEASE_MASK != 0 {
             return false;
         }
+
+        // Modifier combos: flush composing text, let IBus handle the key
         if state & (IBUS_CONTROL_MASK | IBUS_MOD1_MASK | IBUS_SUPER_MASK) != 0 {
+            self.flush(&ctxt).await;
             return false;
+        }
+
+        match keyval {
+            XK_RETURN | XK_KP_ENTER => {
+                self.flush(&ctxt).await;
+                return false;
+            }
+            XK_ESCAPE => {
+                self.telex.reset();
+                let _ = Self::hide_preedit_text(&ctxt).await;
+                return false;
+            }
+            _ => {}
         }
 
         let ch = match keyval {
             XK_BACKSPACE => '\x08',
-            0x20..=0x7e => match char::from_u32(keyval) {
-                Some(c) => c,
-                None => return false,
-            },
-            _ => return false,
+            0x20..=0x7e => keyval as u8 as char,
+            _ => {
+                // Unknown key (arrows, F-keys, etc.): flush and forward
+                self.flush(&ctxt).await;
+                return false;
+            }
         };
 
         match self.telex.process_key(ch) {
@@ -83,22 +117,25 @@ impl GochuEngine {
         &mut self,
         #[zbus(signal_context)] ctxt: SignalContext<'_>,
     ) {
-        let pending = self.telex.get_display();
-        if !pending.is_empty() {
-            self.commit(&ctxt, &pending).await;
-        }
-        self.telex.reset();
-        let _ = Self::hide_preedit_text(&ctxt).await;
+        self.flush(&ctxt).await;
     }
 
-    fn reset(&mut self) {
-        self.telex.reset();
+    async fn reset(
+        &mut self,
+        #[zbus(signal_context)] ctxt: SignalContext<'_>,
+    ) {
+        self.flush(&ctxt).await;
     }
 
     fn enable(&mut self) {}
-    fn disable(&mut self) {
-        self.telex.reset();
+
+    async fn disable(
+        &mut self,
+        #[zbus(signal_context)] ctxt: SignalContext<'_>,
+    ) {
+        self.flush(&ctxt).await;
     }
+
     fn set_cursor_location(&self, _x: i32, _y: i32, _w: i32, _h: i32) {}
     fn set_capabilities(&self, _cap: u32) {}
     fn page_up(&self) -> bool { false }
@@ -107,6 +144,7 @@ impl GochuEngine {
     fn cursor_down(&self) -> bool { false }
     fn property_activate(&self, _name: &str, _state: u32) {}
     fn set_content_type(&self, _purpose: u32, _hints: u32) {}
+    fn set_surrounding_text(&self, _text: Value<'_>, _cursor_index: u32, _anchor_pos: u32) {}
     fn destroy(&mut self) {}
 
     #[zbus(signal)]
