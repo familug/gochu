@@ -19,7 +19,7 @@ gochu/
 │   ├── Cargo.toml          # crate-type = ["cdylib", "rlib"], deps: gochu-core (no default-features), wasm-bindgen, js-sys
 │   ├── src/lib.rs           # Gochu struct wrapping TelexEngine, exposed to JS
 │   └── tests/web.rs         # wasm-bindgen-test integration tests (run via Node.js)
-└── web/                    # Static web frontend (no bundler), deployable to GitHub Pages
+└── docs/                   # Static web frontend (no bundler), served by GitHub Pages from /docs
     ├── index.html           # Semantic HTML, accessibility attributes, meta tags
     ├── style.css            # All styles; CSS custom properties; light/dark via prefers-color-scheme; mobile breakpoint at 480px
     ├── main.js              # Loads WASM, intercepts keydown, manages committed/composing text
@@ -101,7 +101,7 @@ The `Gochu` JS class exposes:
 
 Minimal static site, deployable to GitHub Pages as-is (no build step needed beyond wasm-pack).
 
-**Files:** `index.html` (semantic HTML), `style.css` (all styles), `main.js` (WASM loader + input handling), `pkg/` (wasm-pack output).
+**Files:** `docs/index.html` (semantic HTML), `docs/style.css` (all styles), `docs/main.js` (WASM loader + input handling), `docs/pkg/` (wasm-pack output).
 
 **Theming:** CSS custom properties on `:root` with `@media (prefers-color-scheme: dark)` override. 20+ variables covering backgrounds, borders, text, toggles, and indicators. No JS needed for theme switching — follows OS preference automatically.
 
@@ -130,11 +130,11 @@ cargo test -p gochu-core
 # Run WASM integration tests
 wasm-pack test --node gochu-wasm
 
-# Build WASM (output goes to web/pkg/)
-wasm-pack build gochu-wasm --target web --out-dir ../web/pkg
+# Build WASM (output goes to docs/pkg/)
+wasm-pack build gochu-wasm --target web --out-dir ../docs/pkg
 
 # Serve locally
-cd web && python3 -m http.server 8080
+cd docs && python3 -m http.server 8080
 
 # Security audit
 cargo audit
