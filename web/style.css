@@ -1,0 +1,220 @@
+:root {
+  --bg: #fafafa;
+  --bg-surface: #fff;
+  --bg-input: #fff;
+  --border: #ddd;
+  --border-focus: #999;
+  --text: #1a1a1a;
+  --text-muted: #888;
+  --text-dim: #aaa;
+  --kbd-bg: #f0f0f0;
+  --kbd-border: #ccc;
+  --kbd-text: #555;
+  --preedit-bg: #f0f0f0;
+  --preedit-text: #888;
+  --preedit-active-bg: #e8f4fd;
+  --preedit-active-text: #1a73e8;
+  --toggle-on-bg: #e6f4ea;
+  --toggle-on-text: #1e7e34;
+  --toggle-off-bg: #fce8e6;
+  --toggle-off-text: #c5221f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --bg-surface: #0f0f0f;
+    --bg-input: #1a1a1a;
+    --border: #333;
+    --border-focus: #555;
+    --text: #e0e0e0;
+    --text-muted: #666;
+    --text-dim: #444;
+    --kbd-bg: #222;
+    --kbd-border: #333;
+    --kbd-text: #888;
+    --preedit-bg: #222;
+    --preedit-text: #888;
+    --preedit-active-bg: #1a2a3a;
+    --preedit-active-text: #6cf;
+    --toggle-on-bg: #1a3a1a;
+    --toggle-on-text: #6c6;
+    --toggle-off-bg: #2a1a1a;
+    --toggle-off-text: #c66;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 2rem 1rem;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+header h1 {
+  font-size: 2rem;
+  font-weight: 300;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.25rem;
+}
+
+header p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.editor-container {
+  width: 100%;
+  max-width: 640px;
+}
+
+#editor {
+  width: 100%;
+  min-height: 40vh;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem;
+  font-size: 1.1rem;
+  line-height: 1.8;
+  color: var(--text);
+  resize: vertical;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s ease;
+}
+
+#editor::placeholder {
+  color: var(--text-dim);
+}
+
+#editor:focus {
+  border-color: var(--border-focus);
+}
+
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.75rem;
+  padding: 0 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.status-bar label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.composing-indicator {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  background: var(--preedit-bg);
+  border-radius: 4px;
+  font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+  color: var(--preedit-text);
+  min-width: 2rem;
+  text-align: center;
+}
+
+.composing-indicator.active {
+  color: var(--preedit-active-text);
+  background: var(--preedit-active-bg);
+}
+
+.mode-toggle {
+  cursor: pointer;
+  user-select: none;
+  padding: 0.2rem 0.6rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  background: var(--toggle-on-bg);
+  color: var(--toggle-on-text);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.mode-toggle.off {
+  background: var(--toggle-off-bg);
+  color: var(--toggle-off-text);
+}
+
+footer {
+  margin-top: 2rem;
+  max-width: 640px;
+  width: 100%;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  line-height: 1.8;
+}
+
+footer kbd {
+  display: inline-block;
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  border-radius: 3px;
+  padding: 0 0.35em;
+  font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 0.85em;
+  color: var(--kbd-text);
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 1.5rem 0.75rem;
+    justify-content: flex-start;
+    padding-top: 3rem;
+  }
+
+  header h1 {
+    font-size: 1.5rem;
+  }
+
+  header {
+    margin-bottom: 1.25rem;
+  }
+
+  #editor {
+    min-height: 35vh;
+    font-size: 1rem;
+    padding: 1rem;
+    border-radius: 6px;
+  }
+
+  .status-bar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  footer {
+    margin-top: 1.25rem;
+    line-height: 2;
+  }
+}

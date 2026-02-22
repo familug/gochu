@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Vietnamese Telex input method — type Vietnamese in your browser, powered by Rust and WebAssembly.">
+  <meta name="color-scheme" content="light dark">
+  <title>Gochu - Vietnamese Telex Input</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>gochu</h1>
+    <p>Vietnamese Telex input — powered by Rust + WASM</p>
+  </header>
+
+  <main class="editor-container">
+    <textarea id="editor" placeholder="Gõ tiếng Việt ở đây..." autofocus aria-label="Vietnamese text editor"></textarea>
+    <div class="status-bar">
+      <label>composing: <span id="preedit" class="composing-indicator" aria-live="polite">&mdash;</span></label>
+      <button id="mode" class="mode-toggle" type="button" aria-pressed="true">Telex ON</button>
+    </div>
+  </main>
+
+  <footer>
+    <kbd>aa</kbd>&thinsp;&rarr;&thinsp;&#226;
+    <kbd>aw</kbd>&thinsp;&rarr;&thinsp;&#259;
+    <kbd>ee</kbd>&thinsp;&rarr;&thinsp;&#234;
+    <kbd>oo</kbd>&thinsp;&rarr;&thinsp;&#244;
+    <kbd>ow</kbd>&thinsp;&rarr;&thinsp;&#417;
+    <kbd>uw</kbd>&thinsp;&rarr;&thinsp;&#432;
+    <kbd>dd</kbd>&thinsp;&rarr;&thinsp;&#273;
+    &ensp;|&ensp;
+    <kbd>s</kbd>&thinsp;s&#7855;c
+    <kbd>f</kbd>&thinsp;huy&#7873;n
+    <kbd>r</kbd>&thinsp;h&#7887;i
+    <kbd>x</kbd>&thinsp;ng&#227;
+    <kbd>j</kbd>&thinsp;n&#7863;ng
+    <kbd>z</kbd>&thinsp;x&#243;a d&#7845;u
+  </footer>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
