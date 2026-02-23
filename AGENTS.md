@@ -49,6 +49,16 @@ The codebase follows the **functional core / imperative shell** pattern:
 - `gochu-wasm`: `wasm-bindgen` 0.2, `js-sys` 0.3 (dev: `wasm-bindgen-test` 0.3)
 - All dependencies audited clean via `cargo audit` (zero advisories).
 
+## Agent Maintenance Rule
+
+**Always keep this document up to date.**
+
+Whenever you (an automated agent) make a non-trivial change to behavior, protocols, D-Bus signatures, logging, Telex rules, or installation/usage flows, you must:
+
+- Update `AGENTS.md` with the new knowledge in the appropriate section (or add a new section if needed).
+- Update `README.md` if the change affects how users build, install, configure, or safely use the project (especially around privacy, logging, or input behavior).
+- Prefer concise, factual notes that future agents can rely on without re-deriving past discoveries.
+
 ## Core Engine Design (gochu-core)
 
 ### Pure Transform Layer (transform.rs)
