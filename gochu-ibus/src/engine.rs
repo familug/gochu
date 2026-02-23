@@ -65,9 +65,14 @@ impl GochuEngine {
         if text.is_empty() {
             self.send_signal("HidePreeditText", &()).await;
         } else {
+            crate::log(&format!("preedit: {text:?}"));
             let cursor = text.chars().count() as u32;
-            self.send_signal("UpdatePreeditText", &(ibus_text(text), cursor, true))
-                .await;
+            let mode = 0u32; // IBUS_ENGINE_PREEDIT_CLEAR
+            self.send_signal(
+                "UpdatePreeditText",
+                &(ibus_text(text), cursor, true, mode),
+            )
+            .await;
         }
     }
 

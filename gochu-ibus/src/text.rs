@@ -124,8 +124,9 @@ mod tests {
 
     #[test]
     fn update_preedit_body_signature() {
-        let body = (ibus_text("test"), 4u32, true);
-        assert_eq!(body.dynamic_signature().as_str(), "(vub)");
+        let mode = 0u32;
+        let body = (ibus_text("test"), 4u32, true, mode);
+        assert_eq!(body.dynamic_signature().as_str(), "(vubu)");
     }
 
     #[test]
