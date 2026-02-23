@@ -7,7 +7,43 @@ Rust Vietnamese Telex engine with two frontends:
 
 This guide focuses on setting up the IBus engine.
 
-### Build and install the IBus engine
+### Install using prebuilt binary (recommended)
+
+If a prebuilt binary for your platform is available on the project’s GitHub Releases page, prefer this method.
+
+Prerequisites:
+
+- IBus running on your desktop (e.g. GNOME, KDE, etc.).
+- `curl` and `sudo` available.
+
+1. **Download the prebuilt binary**
+
+   Go to the project’s **Releases** page on GitHub and download the latest `gochu-ibus-linux-x86_64` binary (or the binary that matches your platform) to a directory of your choice.
+
+2. **Install the binary**
+
+   ```bash
+   chmod +x gochu-ibus-linux-x86_64
+   sudo install -Dm755 gochu-ibus-linux-x86_64 /usr/local/bin/gochu-ibus
+   ```
+
+3. **Install the IBus component file**
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/familug/gochu/main/gochu-ibus/data/gochu.xml \
+     | sudo install -Dm644 /dev/stdin /usr/share/ibus/component/gochu.xml
+   ```
+
+On most Linux distributions this will install:
+
+- The binary to `/usr/local/bin/gochu-ibus`.
+- The component file to `/usr/share/ibus/component/gochu.xml`.
+
+If your system uses a different IBus component directory (for example on some BSDs), replace `/usr/share/ibus/component/gochu.xml` with the appropriate path.
+
+### Build and install from source (if no prebuilt binary)
+
+If there is no suitable prebuilt binary for your system, or you prefer to build from source, use this method.
 
 Prerequisites:
 
