@@ -138,9 +138,18 @@ impl GochuEngine {
                 true
             }
             Action::Commit(text) => {
-                self.hide_preedit().await;
-                self.commit(&text).await;
-                true
+                // Contract with gochu-core: Commit(\"\") on backspace when the
+                // composing buffer is empty means \"let the client handle
+                // deletion\". In that case we must return false so IBus
+                // forwards Backspace to the application.
+                if text.is_empty() {
+                    self.hide_preedit().await;
+                    false
+                } else {
+                    self.hide_preedit().await;
+                    self.commit(&text).await;
+                    true
+                }
             }
         }
     }
