@@ -75,18 +75,72 @@ impl TelexEngine {
             return Action::Commit(String::new());
         }
 
-        // Delete exactly one composed character from the right, regardless of
-        // how many Telex keystrokes produced it. This matches the user-visible
-        // expectation that Backspace removes the character at the cursor
-        // (e.g. \"cộ\" → \"c\").
-        let target_len = self.buf.len().saturating_sub(1);
+        // Delete exactly one *displayed* character from the right, even if it
+        // was produced by multiple Telex keystrokes (tone + vowel mods).
+        //
+        // We reconstruct, for each raw key, which buffer indices it touched,
+        // then drop all keys that affected the last character. This keeps
+        // tone on the preceding vowel in cases like \"phúc\" (typed \"phucs\"):
+        // Backspace removes the trailing \"c\" but preserves \"phú\".
+        let last_idx = self.buf.len().saturating_sub(1);
 
-        while !self.raw.is_empty() {
-            self.raw.pop();
-            self.buf = transform::replay(&self.raw);
-            if self.buf.len() <= target_len {
-                break;
+        let mut sim_buf: Vec<char> = Vec::new();
+        let mut touched: Vec<Vec<usize>> = Vec::with_capacity(self.raw.len());
+
+        for &key in &self.raw {
+            let effect = transform::classify_key(key, &sim_buf);
+            let mut indices: alloc::vec::Vec<usize> = alloc::vec::Vec::new();
+
+            match effect {
+                KeyEffect::ToneApplied { position, .. }
+                | KeyEffect::DdApplied { position, .. }
+                | KeyEffect::VowelModified { position, .. } => {
+                    if position < sim_buf.len() {
+                        indices.push(position);
+                    }
+                }
+                KeyEffect::WAsVowel(_) | KeyEffect::Append(_) => {
+                    indices.push(sim_buf.len());
+                }
+                KeyEffect::ToneClearAndAppend { position, .. } => {
+                    if position < sim_buf.len() {
+                        indices.push(position);
+                    }
+                    indices.push(sim_buf.len());
+                }
+                KeyEffect::Commit(_) | KeyEffect::Backspace => {}
             }
+
+            sim_buf = transform::apply_effect(&sim_buf, &effect);
+            touched.push(indices);
+        }
+
+        // Filter out all raw keystrokes that touched the last character.
+        let mut new_raw = Vec::with_capacity(self.raw.len());
+        for (i, ch) in self.raw.iter().enumerate() {
+            if !touched
+                .get(i)
+                .map(|idxs| idxs.contains(&last_idx))
+                .unwrap_or(false)
+            {
+                new_raw.push(*ch);
+            }
+        }
+        // If filtering somehow removed nothing (should not happen), fall back
+        // to the previous behaviour of popping raw keys until the length
+        // shrinks by one, as a safety net.
+        if new_raw.len() == self.raw.len() {
+            let target_len = self.buf.len().saturating_sub(1);
+            while !self.raw.is_empty() {
+                self.raw.pop();
+                self.buf = transform::replay(&self.raw);
+                if self.buf.len() <= target_len {
+                    break;
+                }
+            }
+        } else {
+            self.raw = new_raw;
+            self.buf = transform::replay(&self.raw);
         }
 
         if self.buf.is_empty() {
@@ -261,6 +315,14 @@ mod tests {
         assert_eq!(type_word(&mut e, "cooxj"), "cộ");
         let result = type_word(&mut e, "\x08");
         assert_eq!(result, "c");
+    }
+
+    #[test]
+    fn backspace_after_final_consonant_keeps_tone() {
+        let mut e = TelexEngine::new();
+        assert_eq!(type_word(&mut e, "phucs"), "phúc");
+        let result = type_word(&mut e, "\x08");
+        assert_eq!(result, "phú");
     }
 
     #[test]
