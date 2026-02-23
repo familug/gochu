@@ -19,7 +19,8 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
 fi
 
 # Detect current version from gochu-core as the source of truth.
-CURRENT_VER="$(grep '^version = \"' gochu-core/Cargo.toml | head -n1 | sed 's/.*\"\\(.*\\)\".*/\\1/')"
+# Extract just the version number (e.g. 0.1.0).
+CURRENT_VER="$(grep '^version = \"[0-9]' gochu-core/Cargo.toml | head -n1 | sed 's/.*\"\\([0-9][^\"]*\\)\".*/\\1/')"
 
 if [ -z "$CURRENT_VER" ]; then
   echo "Error: could not detect current version from gochu-core/Cargo.toml" >&2
