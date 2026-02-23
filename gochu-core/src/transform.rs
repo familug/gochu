@@ -4,7 +4,7 @@
 extern crate alloc;
 use alloc::vec::Vec;
 
-use crate::tone::{apply_tone, Tone};
+use crate::tone::{apply_tone, get_tone, Tone};
 use crate::vowel::{is_vowel, modify_vowel};
 
 /// What effect a single keystroke has on a composing buffer.
@@ -63,7 +63,13 @@ fn try_tone(key: char, buf: &[char]) -> Option<KeyEffect> {
         return None;
     }
     let pos = crate::vowel::tone_position(buf)?;
-    let replacement = apply_tone(buf[pos], tone);
+    let current = buf[pos];
+    // If the target vowel already has this tone, treat the key as literal
+    // (so repeated tone keys append, instead of being silently eaten).
+    if get_tone(current) == tone {
+        return None;
+    }
+    let replacement = apply_tone(current, tone);
     Some(KeyEffect::ToneApplied {
         position: pos,
         replacement,
@@ -188,6 +194,21 @@ mod tests {
         let buf: Vec<char> = vec!['d'];
         let effect = classify_key('s', &buf);
         assert_eq!(effect, KeyEffect::Append('s'));
+    }
+
+    #[test]
+    fn classify_repeated_tone_key_appends() {
+        // First x applies ngã tone to i → ĩ
+        let mut buf: Vec<char> = vec!['f', 'i'];
+        let effect1 = classify_key('x', &buf);
+        buf = apply_effect(&buf, &effect1);
+        assert_eq!(buf.iter().collect::<String>(), "fĩ");
+
+        // Second x should be treated as literal 'x', not another tone op
+        let effect2 = classify_key('x', &buf);
+        assert_eq!(effect2, KeyEffect::Append('x'));
+        let buf2 = apply_effect(&buf, &effect2);
+        assert_eq!(buf2.iter().collect::<String>(), "fĩx");
     }
 
     #[test]
