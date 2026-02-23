@@ -170,11 +170,28 @@ A native input method engine for Ubuntu Linux and OpenBSD using the IBus framewo
 - `org.freedesktop.IBus.Factory` — `CreateEngine(name) -> ObjectPath`. IBus calls this to instantiate engines.
 - `org.freedesktop.IBus.Engine` — `ProcessKeyEvent(keyval, keycode, state) -> bool` plus `FocusIn/Out`, `Reset`, `Enable/Disable`. Emits signals: `CommitText`, `UpdatePreeditText`, `HidePreeditText`.
 
-**IBusText serialization** (`text.rs`): Constructs the GVariant `(sa{sv}sv)` format that IBus expects. IBusText wraps the text string and an IBusAttrList `(sa{sv}av)`.
+**IBusText serialization** (`text.rs`): Constructs the GVariant `(sa{sv}sv)` format that IBus expects. IBusText wraps the text string and an IBusAttrList `(sa{sv}av)`. The struct is built using a `Field` wrapper so that `StructureBuilder` sees the *contained* type signatures (`s`, `a{sv}`, `v`) instead of the generic `Value` variant type (`v` for everything). There are unit tests that hex‑dump the serialized body and assert the inner signature is exactly `(sa{sv}sv)`.
 
-**Key event handling:** Maps X11 keysyms (0x20–0x7e for printable ASCII, 0xff08 for BackSpace) to chars, ignores release events and Ctrl/Alt/Super modifiers, feeds to `TelexEngine::process_key()`.
+**Key event handling:** Maps X11 keysyms (0x20–0x7e for printable ASCII, 0xff08 for BackSpace) to chars, ignores release events and Ctrl/Alt/Super modifiers, feeds to `TelexEngine::process_key()`. Backspace behavior:
 
-**Connection:** Reads `IBUS_ADDRESS` env var (set by IBus when launching engines), falls back to socket file at `~/.config/ibus/bus/`, then session bus.
+- When `TelexEngine` returns `Action::Composing(_)`, the engine consumes the key and updates preedit.
+- When it returns `Action::Commit(text)` with non‑empty `text`, the engine emits `CommitText` and returns `true`.
+- When it returns `Action::Commit("")` (empty string, used by core to mean “no composing text; let the app handle deletion”), the engine hides preedit and returns `false` so IBus forwards Backspace to the application.
+
+**Connection:** Finds the private IBus address by scanning `~/.config/ibus/bus/` for the current `machine_id` and using the newest entry. Connects in **p2p mode** via `zbus::connection::Builder::address(...).p2p().build()`, then manually calls `Hello` and `RequestName(BUS_NAME)` on `org.freedesktop.DBus` so the daemon associates the connection with the component.
+
+**Signals:** Uses `Message::signal(...).build(&body)` instead of `emit_signal`, passing bodies whose `DynamicType` matches the IBus spec:
+
+- `CommitText`: body `v` where the variant contains `IBusText` `(sa{sv}sv)`.
+- `UpdatePreeditText`: body `vubu` — `(IBusText, cursor_pos: u32, visible: bool, mode: u32)`.
+- `HidePreeditText`: empty body.
+
+There are unit tests in `text.rs` that assert the runtime signature of these bodies and roundtrip them through zvariant serialization/deserialization.
+
+**Logging / privacy:** `gochu-ibus` logs to `/tmp/gochu-ibus.log` **only** when `GOCHU_DEBUG` is set in the environment of `ibus-daemon`. Without `GOCHU_DEBUG`, the `log()` function is a no‑op and does not create the file. All debug logging has been restricted to high‑level engine events; user text (preedit and commit content) is no longer logged. There are unit tests in `main.rs` that verify:
+
+- Without `GOCHU_DEBUG`, calling `log("...")` does not create or write `/tmp/gochu-ibus.log`.
+- With `GOCHU_DEBUG=1`, `log("...")` creates the file and writes the given line.
 
 **Install:**
 

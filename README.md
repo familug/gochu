@@ -62,24 +62,26 @@ On most desktops:
 
 Once enabled, you should be able to type Vietnamese Telex in any IBus‑aware application (terminal, editors, browsers, etc.).
 
-### Verifying that it works
+### Debug logging and privacy
 
-The engine logs to `/tmp/gochu-ibus.log`:
+By default the IBus engine does **not** write any user input to disk.
+
+Debug logging is fully opt‑in and only enabled when you set `GOCHU_DEBUG` in the environment of `ibus-daemon`. When enabled, log messages go to `/tmp/gochu-ibus.log` and are intended for engine debugging only.
+
+To start IBus with debug logging enabled for gochu:
+
+```bash
+ibus exit              # or pkill ibus-daemon
+GOCHU_DEBUG=1 ibus-daemon --daemonize --xim
+```
+
+Then you can inspect the log:
 
 ```bash
 cat /tmp/gochu-ibus.log
 ```
 
-A typical session shows lines like:
-
-- `connecting to ...`
-- `Hello: :1.x`
-- `RequestName(org.freedesktop.IBus.Gochu): 1`
-- `CreateEngine("gochu-telex") -> /org/freedesktop/IBus/Engine/0`
-- `preedit: "vie"`
-- `commit: "việt "`
-
-If you see `preedit:` lines as you type and `commit:` lines when a word finishes, the engine is working and IBus is receiving both composing and committed text.
+Restart IBus normally (without `GOCHU_DEBUG`) when you are finished debugging so that logging is disabled again.
 
 ### Troubleshooting
 

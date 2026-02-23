@@ -56,7 +56,6 @@ impl GochuEngine {
 
     async fn commit(&self, text: &str) {
         if !text.is_empty() {
-            crate::log(&format!("commit: {text:?}"));
             self.send_signal("CommitText", &ibus_text(text)).await;
         }
     }
@@ -65,7 +64,6 @@ impl GochuEngine {
         if text.is_empty() {
             self.send_signal("HidePreeditText", &()).await;
         } else {
-            crate::log(&format!("preedit: {text:?}"));
             let cursor = text.chars().count() as u32;
             let mode = 0u32; // IBUS_ENGINE_PREEDIT_CLEAR
             self.send_signal(

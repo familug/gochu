@@ -280,11 +280,13 @@ mod tests {
     }
 
     #[test]
-    fn english_fix_with_repeated_tone_keys_keeps_extra_x() {
+    fn six_and_sixx_behavior() {
         let mut e = TelexEngine::new();
-        // fi + first x → fĩ, further x presses should appear literally
-        let result = type_word(&mut e, "fixxx");
-        assert_eq!(result, "fĩxx");
+        // \"six\" → sĩ
+        assert_eq!(type_word(&mut e, "six"), "sĩ");
+        e.reset();
+        // \"sixx\" → six (double x cancels the tone but keeps one x)
+        assert_eq!(type_word(&mut e, "sixx"), "six");
     }
 
     // -- passthrough: tone key without vowel --

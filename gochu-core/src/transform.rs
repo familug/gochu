@@ -4,7 +4,7 @@
 extern crate alloc;
 use alloc::vec::Vec;
 
-use crate::tone::{apply_tone, get_tone, Tone};
+use crate::tone::{apply_tone, get_tone, strip_tone, Tone};
 use crate::vowel::{is_vowel, modify_vowel};
 
 /// What effect a single keystroke has on a composing buffer.
@@ -24,6 +24,13 @@ pub enum KeyEffect {
     Commit(char),
     /// Backspace
     Backspace,
+    /// Vowel already had this tone: clear the tone and append the tone key
+    /// literally (e.g. \"sixx\" → \"six\").
+    ToneClearAndAppend {
+        position: usize,
+        base: char,
+        appended: char,
+    },
 }
 
 /// Pure: classify a key given the current buffer contents.
@@ -64,10 +71,16 @@ fn try_tone(key: char, buf: &[char]) -> Option<KeyEffect> {
     }
     let pos = crate::vowel::tone_position(buf)?;
     let current = buf[pos];
-    // If the target vowel already has this tone, treat the key as literal
-    // (so repeated tone keys append, instead of being silently eaten).
-    if get_tone(current) == tone {
-        return None;
+    let current_tone = get_tone(current);
+    if current_tone == tone {
+        // Pressing the same tone key again: remove the tone but keep a
+        // literal tone key at the end, e.g. \"six\" → \"sĩ\", then
+        // \"sixx\" → \"six\".
+        return Some(KeyEffect::ToneClearAndAppend {
+            position: pos,
+            base: strip_tone(current),
+            appended: key,
+        });
     }
     let replacement = apply_tone(current, tone);
     Some(KeyEffect::ToneApplied {
@@ -153,6 +166,16 @@ pub fn apply_effect(buf: &[char], effect: &KeyEffect) -> Vec<char> {
         KeyEffect::WAsVowel(ch) | KeyEffect::Append(ch) => {
             result.push(ch);
         }
+        KeyEffect::ToneClearAndAppend {
+            position,
+            base,
+            appended,
+        } => {
+            if position < result.len() {
+                result[position] = base;
+            }
+            result.push(appended);
+        }
         KeyEffect::Commit(_) | KeyEffect::Backspace => {}
     }
     result
@@ -197,18 +220,31 @@ mod tests {
     }
 
     #[test]
-    fn classify_repeated_tone_key_appends() {
-        // First x applies ngã tone to i → ĩ
-        let mut buf: Vec<char> = vec!['f', 'i'];
+    fn classify_repeated_tone_key_clears_and_appends_literal() {
+        // Start from \"si\".
+        let mut buf: Vec<char> = vec!['s', 'i'];
+        // First x applies ngã tone to i → sĩ.
         let effect1 = classify_key('x', &buf);
         buf = apply_effect(&buf, &effect1);
-        assert_eq!(buf.iter().collect::<String>(), "fĩ");
+        assert_eq!(buf.iter().collect::<String>(), "sĩ");
 
-        // Second x should be treated as literal 'x', not another tone op
+        // Second x should clear the tone and append literal 'x':
+        // sĩ + x → six.
         let effect2 = classify_key('x', &buf);
-        assert_eq!(effect2, KeyEffect::Append('x'));
+        match effect2 {
+            KeyEffect::ToneClearAndAppend {
+                position,
+                base,
+                appended,
+            } => {
+                assert_eq!(position, 1);
+                assert_eq!(base, 'i');
+                assert_eq!(appended, 'x');
+            }
+            other => panic!("expected ToneClearAndAppend, got {other:?}"),
+        }
         let buf2 = apply_effect(&buf, &effect2);
-        assert_eq!(buf2.iter().collect::<String>(), "fĩx");
+        assert_eq!(buf2.iter().collect::<String>(), "six");
     }
 
     #[test]

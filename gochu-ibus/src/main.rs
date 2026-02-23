@@ -9,6 +9,12 @@ const BUS_NAME: &str = "org.freedesktop.IBus.Gochu";
 const LOG_PATH: &str = "/tmp/gochu-ibus.log";
 
 pub(crate) fn log(msg: &str) {
+    // Debug logging is intended for development only. It does not record any
+    // user text content and is disabled unless GOCHU_DEBUG is set.
+    if env::var_os("GOCHU_DEBUG").is_none() {
+        return;
+    }
+
     eprintln!("gochu: {msg}");
     use std::io::Write;
     if let Ok(mut f) = std::fs::OpenOptions::new()
@@ -17,6 +23,47 @@ pub(crate) fn log(msg: &str) {
         .open(LOG_PATH)
     {
         let _ = writeln!(f, "{msg}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn clear_log_file() {
+        let _ = std::fs::remove_file(LOG_PATH);
+    }
+
+    fn read_log() -> Option<String> {
+        std::fs::read_to_string(LOG_PATH).ok()
+    }
+
+    #[test]
+    fn log_is_noop_without_debug_env() {
+        clear_log_file();
+        env::remove_var("GOCHU_DEBUG");
+
+        log("USER_INPUT_SHOULD_NOT_BE_LOGGED");
+
+        // Without GOCHU_DEBUG, log must not create or write the file.
+        assert!(
+            !std::path::Path::new(LOG_PATH).exists(),
+            "log() should not create a log file when GOCHU_DEBUG is unset"
+        );
+    }
+
+    #[test]
+    fn log_writes_only_when_debug_env_set() {
+        clear_log_file();
+        env::set_var("GOCHU_DEBUG", "1");
+
+        log("GOCHU_DEBUG_TEST_LINE");
+
+        let contents = read_log().expect("log file should exist when GOCHU_DEBUG is set");
+        assert!(
+            contents.contains("GOCHU_DEBUG_TEST_LINE"),
+            "log file did not contain expected debug line"
+        );
     }
 }
 
