@@ -66,11 +66,8 @@ impl GochuEngine {
             self.send_signal("HidePreeditText", &()).await;
         } else {
             let cursor = text.chars().count() as u32;
-            self.send_signal(
-                "UpdatePreeditText",
-                &(ibus_text(text), cursor, true),
-            )
-            .await;
+            self.send_signal("UpdatePreeditText", &(ibus_text(text), cursor, true))
+                .await;
         }
     }
 
