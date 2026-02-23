@@ -23,6 +23,7 @@
   </main>
 
   <footer>
+    <p class="version" id="version" aria-label="Build version"></p>
     <kbd>aa</kbd>&thinsp;&rarr;&thinsp;&#226;
     <kbd>aw</kbd>&thinsp;&rarr;&thinsp;&#259;
     <kbd>ee</kbd>&thinsp;&rarr;&thinsp;&#234;
@@ -39,6 +40,15 @@
     <kbd>z</kbd>&thinsp;x&#243;a d&#7845;u
   </footer>
 
+  <script src="version.js"></script>
+  <script>
+    (function () {
+      var el = document.getElementById('version');
+      if (el && window.GOCHU_VERSION) {
+        el.textContent = GOCHU_VERSION.commit + ' \u00b7 ' + GOCHU_VERSION.date;
+      }
+    })();
+  </script>
   <script type="module" src="main.js"></script>
 </body>
 </html>
