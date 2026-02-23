@@ -64,6 +64,8 @@ In addition, for every behavior change, feature, or bugfix:
 - Add or update at least one **unit test** in the relevant crate (`gochu-core`, `gochu-ibus`, `gochu-wasm`, or the web JS) that captures the expected behavior (e.g. specific key sequences, D-Bus signatures, logging behavior).
 - Do not remove existing tests that describe real-world behaviors users depend on unless you also update this document to explain why the behavior changed.
 
+**WASM / GitHub Pages:** After any code change that affects the web demo (e.g. `gochu-core`, `gochu-wasm`, or `docs/`), run **`./build.sh`** from the repo root so `docs/pkg/` is rebuilt and stays in sync. Commit the updated `docs/pkg/` (and any changed `docs/*.js` / `docs/*.html` / `docs/*.css`) so that GitHub Pages serves the latest WASM and assets. Do not forget this step — the site does not build on GitHub; it only serves what you push.
+
 ## Core Engine Design (gochu-core)
 
 ### Pure Transform Layer (transform.rs)
@@ -124,13 +126,18 @@ The `Gochu` JS class exposes:
 
 Minimal static site, deployable to GitHub Pages as-is (no build step needed beyond wasm-pack).
 
-**Files:** `docs/index.html` (semantic HTML), `docs/style.css` (all styles), `docs/main.js` (WASM loader + input handling), `docs/pkg/` (wasm-pack output).
+**Files:** `docs/index.html` (semantic HTML), `docs/style.css` (all styles), `docs/main.js` (WASM loader + input handling), `docs/pkg/` (wasm-pack output, committed so GitHub Pages can serve it directly).
 
 **Theming:** CSS custom properties on `:root` with `@media (prefers-color-scheme: dark)` override. 20+ variables covering backgrounds, borders, text, toggles, and indicators. No JS needed for theme switching — follows OS preference automatically.
 
 **Responsive:** Fluid layout with `max-width: 640px`. Mobile breakpoint at `480px` adjusts padding, font sizes, and textarea height. Uses `100dvh` for correct mobile viewport.
 
 **Accessibility:** Semantic `<header>`, `<main>`, `<footer>`. Toggle is a `<button>` with `aria-pressed`. Preedit has `aria-live="polite"`. Textarea has `aria-label`. `<meta name="color-scheme" content="light dark">` for native form control theming.
+
+**Agent rule for web/GitHub Pages:**
+
+- After any change that affects the web demo (e.g. `gochu-core`, `gochu-wasm`, or `docs/`), **run `./build.sh`** so `docs/pkg/` is rebuilt. Commit updated `docs/pkg/` and any changed `docs/*.js` / `docs/*.html` / `docs/*.css`. GitHub Pages does not build; it only serves what you push.
+- When you change behavior (keyboard handling, Telex semantics, UI), update `docs/main.js` / `docs/index.html` / `docs/style.css` as needed so the live site reflects the latest behavior.
 
 **Input handling (`main.js`):** Two-layer text model — `committed` (finalized string) and the engine's composing buffer. On each keydown, feeds key to `gochu.process_key()`. On "commit" action, appends to `committed` and resets engine. Textarea always shows `committed + composing`.
 
