@@ -53,6 +53,8 @@ The codebase follows the **functional core / imperative shell** pattern:
 
 **Always keep this document up to date.**
 
+**Verification:** Whatever you produce must be verified before you say it works. For **GitHub Actions workflows** (`.github/workflows/*.yml`): use block scalar `run: |` for any step that runs shell containing colons or quotes (e.g. `echo "version is: $VERSION"`), so the YAML parser does not mis-parse. After editing a workflow, validate it (e.g. `actionlint`, `yamllint`, or push a test tag and confirm the run succeeds). Do not claim a workflow "will work" without having run a syntax check or a real run.
+
 Whenever you (an automated agent) make a non-trivial change to behavior, protocols, D-Bus signatures, logging, Telex rules, or installation/usage flows, you must:
 
 - Update `AGENTS.md` with the new knowledge in the appropriate section (or add a new section if needed).

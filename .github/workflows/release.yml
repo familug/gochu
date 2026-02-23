@@ -19,10 +19,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set VERSION from tag
-        run: echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+        run: |
+          echo "VERSION=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
 
       - name: Show version
-        run: echo "version is: $VERSION"
+        run: |
+          echo "version is: $VERSION"
 
       - name: Create GitHub release (if missing)
         env:
