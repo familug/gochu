@@ -1,7 +1,7 @@
 {
   "name": "gochu-wasm",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "files": [
     "gochu_wasm_bg.wasm",
     "gochu_wasm.js",
