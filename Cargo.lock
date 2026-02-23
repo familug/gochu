@@ -417,11 +417,11 @@ dependencies = [
 
 [[package]]
 name = "gochu-core"
-version = "0.1.0"
+version = "0.3.0"
 
 [[package]]
 name = "gochu-ibus"
-version = "0.1.0"
+version = "0.3.0"
 dependencies = [
  "gochu-core",
  "serde",
@@ -431,7 +431,7 @@ dependencies = [
 
 [[package]]
 name = "gochu-wasm"
-version = "0.1.0"
+version = "0.3.0"
 dependencies = [
  "gochu-core",
  "js-sys",
@@ -1514,6 +1514,10 @@ dependencies = [
  "libc",
  "windows-sys 0.59.0",
 ]
+
+[[package]]
+name = "xtask"
+version = "0.1.0"
 
 [[package]]
 name = "zbus"

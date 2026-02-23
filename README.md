@@ -142,3 +142,12 @@ Restart IBus normally (without `GOCHU_DEBUG`) when you are finished debugging so
 - **Firefox behaves differently from terminals/other apps**
   - Some apps are more strict about IBus D‑Bus methods such as `SetSurroundingText`. This engine implements the required interfaces; if Firefox still misbehaves, ensure it is actually using IBus (on some distros it may use another input framework).
 
+### Releasing
+
+From the repo root, with a clean working tree and push access to the remote:
+
+```bash
+cargo run -p xtask -- release 0.4.0
+```
+
+This bumps all crate versions, runs tests, rebuilds the web demo, then commits, tags `v0.4.0`, and pushes. The GitHub Actions release workflow builds the Linux binary when the tag is pushed.

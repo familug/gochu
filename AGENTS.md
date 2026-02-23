@@ -170,6 +170,10 @@ cd docs && python3 -m http.server 8080
 
 # Security audit
 cargo audit
+
+# Release a new version (bump crates, test, rebuild web demo, commit, tag, push)
+cargo run -p xtask -- release <VERSION>
+# Example: cargo run -p xtask -- release 0.4.0
 ```
 
 ## Telex Reference
