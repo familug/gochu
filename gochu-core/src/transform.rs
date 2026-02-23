@@ -91,17 +91,15 @@ fn try_tone(key: char, buf: &[char]) -> Option<KeyEffect> {
 
 fn try_dd(key: char, buf: &[char]) -> Option<KeyEffect> {
     let last = *buf.last()?;
-    match (last, key) {
-        ('d', 'd') => Some(KeyEffect::DdApplied {
-            position: buf.len() - 1,
-            replacement: 'đ',
-        }),
-        ('D', 'D') => Some(KeyEffect::DdApplied {
-            position: buf.len() - 1,
-            replacement: 'Đ',
-        }),
-        _ => None,
-    }
+    let replacement = match (last, key) {
+        ('d', 'd') | ('d', 'D') => 'đ',
+        ('D', 'D') | ('D', 'd') => 'Đ',
+        _ => return None,
+    };
+    Some(KeyEffect::DdApplied {
+        position: buf.len() - 1,
+        replacement,
+    })
 }
 
 fn try_vowel_modify(key: char, buf: &[char]) -> Option<KeyEffect> {
@@ -252,6 +250,26 @@ mod tests {
         let buf: Vec<char> = vec!['d'];
         assert_eq!(
             classify_key('d', &buf),
+            KeyEffect::DdApplied {
+                position: 0,
+                replacement: 'đ'
+            }
+        );
+    }
+
+    #[test]
+    fn classify_dd_mixed_case() {
+        let buf_d: Vec<char> = vec!['D'];
+        assert_eq!(
+            classify_key('d', &buf_d),
+            KeyEffect::DdApplied {
+                position: 0,
+                replacement: 'Đ'
+            }
+        );
+        let buf_d_lower: Vec<char> = vec!['d'];
+        assert_eq!(
+            classify_key('D', &buf_d_lower),
             KeyEffect::DdApplied {
                 position: 0,
                 replacement: 'đ'

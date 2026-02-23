@@ -208,6 +208,10 @@ mod tests {
         assert_eq!(type_word(&mut e, "dd"), "đ");
         e.reset();
         assert_eq!(type_word(&mut e, "DD"), "Đ");
+        e.reset();
+        assert_eq!(type_word(&mut e, "Dd"), "Đ");
+        e.reset();
+        assert_eq!(type_word(&mut e, "dD"), "đ");
     }
 
     // -- tones --
