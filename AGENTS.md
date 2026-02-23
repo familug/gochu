@@ -59,6 +59,11 @@ Whenever you (an automated agent) make a non-trivial change to behavior, protoco
 - Update `README.md` if the change affects how users build, install, configure, or safely use the project (especially around privacy, logging, or input behavior).
 - Prefer concise, factual notes that future agents can rely on without re-deriving past discoveries.
 
+In addition, for every behavior change, feature, or bugfix:
+
+- Add or update at least one **unit test** in the relevant crate (`gochu-core`, `gochu-ibus`, `gochu-wasm`, or the web JS) that captures the expected behavior (e.g. specific key sequences, D-Bus signatures, logging behavior).
+- Do not remove existing tests that describe real-world behaviors users depend on unless you also update this document to explain why the behavior changed.
+
 ## Core Engine Design (gochu-core)
 
 ### Pure Transform Layer (transform.rs)

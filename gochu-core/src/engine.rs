@@ -75,17 +75,27 @@ impl TelexEngine {
             return Action::Commit(String::new());
         }
 
-        self.raw.pop();
+        // Delete exactly one composed character from the right, regardless of
+        // how many Telex keystrokes produced it. This matches the user-visible
+        // expectation that Backspace removes the character at the cursor
+        // (e.g. \"cộ\" → \"c\").
+        let target_len = self.buf.len().saturating_sub(1);
 
-        if self.raw.is_empty() {
-            self.buf.clear();
-            self.composing = false;
-            return Action::Composing(String::new());
+        while !self.raw.is_empty() {
+            self.raw.pop();
+            self.buf = transform::replay(&self.raw);
+            if self.buf.len() <= target_len {
+                break;
+            }
         }
 
-        self.buf = transform::replay(&self.raw);
-        self.composing = true;
-        Action::Composing(self.get_display())
+        if self.buf.is_empty() {
+            self.composing = false;
+            Action::Composing(String::new())
+        } else {
+            self.composing = true;
+            Action::Composing(self.get_display())
+        }
     }
 }
 
@@ -235,19 +245,30 @@ mod tests {
     // -- backspace --
 
     #[test]
-    fn backspace_removes_last_raw_key() {
+    fn backspace_deletes_one_composed_char() {
         let mut e = TelexEngine::new();
         type_word(&mut e, "as"); // á
-        let result = type_word(&mut e, "\x08"); // remove the 's'
-        assert_eq!(result, "a");
+        let result = type_word(&mut e, "\x08"); // delete the á
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn backspace_on_circumflex_tone_deletes_entire_char() {
+        let mut e = TelexEngine::new();
+        // \"côj\" → \"cộ\" (ô + nặng)
+        assert_eq!(type_word(&mut e, "coj"), "cọ");
+        e.reset();
+        assert_eq!(type_word(&mut e, "cooxj"), "cộ");
+        let result = type_word(&mut e, "\x08");
+        assert_eq!(result, "c");
     }
 
     #[test]
     fn backspace_through_vowel_mod() {
         let mut e = TelexEngine::new();
         type_word(&mut e, "aa"); // â
-        let result = type_word(&mut e, "\x08"); // remove one 'a'
-        assert_eq!(result, "a");
+        let result = type_word(&mut e, "\x08"); // delete â
+        assert_eq!(result, "");
     }
 
     #[test]
@@ -272,11 +293,12 @@ mod tests {
     fn multiple_backspaces() {
         let mut e = TelexEngine::new();
         type_word(&mut e, "Vieejt"); // Việt (raw: V,i,e,e,j,t)
-        type_word(&mut e, "\x08"); // raw: V,i,e,e,j → Việ
-        let result = type_word(&mut e, "\x08"); // raw: V,i,e,e → Viê
-        assert_eq!(result, "Viê");
-        let result = type_word(&mut e, "\x08"); // raw: V,i,e → Vie
-        assert_eq!(result, "Vie");
+        let result = type_word(&mut e, "\x08");
+        assert_eq!(result, "Việ"); // delete 't'
+        let result = type_word(&mut e, "\x08");
+        assert_eq!(result, "Vi"); // delete the toned vowel
+        let result = type_word(&mut e, "\x08");
+        assert_eq!(result, "V"); // delete the i
     }
 
     #[test]
