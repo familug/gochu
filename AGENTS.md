@@ -65,6 +65,7 @@ In addition, for every behavior change, feature, or bugfix:
 
 - Add or update at least one **unit test** in the relevant crate (`gochu-core`, `gochu-ibus`, `gochu-wasm`, or the web JS) that captures the expected behavior (e.g. specific key sequences, D-Bus signatures, logging behavior).
 - Do not remove existing tests that describe real-world behaviors users depend on unless you also update this document to explain why the behavior changed.
+- **If you changed `gochu-core` or `gochu-wasm`:** Before considering the task done, you **must** run `./build.sh` and commit the updated `docs/pkg/` and `docs/version.js`. Do this in the same commit as the code change or as an immediate follow-up commit. The web demo does not build on GitHub; it only serves what you push. Skipping this step leaves the live site out of sync with the engine.
 
 **WASM / GitHub Pages:** After any code change that affects the web demo (e.g. `gochu-core`, `gochu-wasm`, or `docs/`), run **`./build.sh`** from the repo root so `docs/pkg/` is rebuilt and stays in sync. Commit the updated `docs/pkg/` (and any changed `docs/*.js` / `docs/*.html` / `docs/*.css`) so that GitHub Pages serves the latest WASM and assets. Do not forget this step — the site does not build on GitHub; it only serves what you push.
 
