@@ -52,9 +52,11 @@ fn release(new_version: &str) -> Result<(), String> {
     }
 
     // 4. Run tests
+    eprintln!("Running tests...");
     run_cmd(root, "cargo", &["test", "--workspace"])?;
 
     // 5. Rebuild web demo (wasm-pack + version.js)
+    eprintln!("Building web demo (wasm-pack)...");
     run_wasm_build(root)?;
     write_version_js(root)?;
 
@@ -121,11 +123,18 @@ fn run_cmd(root: &Path, bin: &str, args: &[&str]) -> Result<(), String> {
 }
 
 fn run_wasm_build(root: &Path) -> Result<(), String> {
-    run_cmd(
-        root,
-        "wasm-pack",
-        &["build", "gochu-wasm", "--target", "web", "--out-dir", "docs/pkg"],
-    )?;
+    let out = Command::new("wasm-pack")
+        .current_dir(root)
+        .args(["build", "gochu-wasm", "--target", "web", "--out-dir", "docs/pkg"])
+        .output()
+        .map_err(|e| format!("wasm-pack: {}. Is wasm-pack installed? (cargo install wasm-pack)", e))?;
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        return Err(format!(
+            "wasm-pack build failed. Is wasm-pack installed? (cargo install wasm-pack)\nstderr: {}",
+            stderr.trim()
+        ));
+    }
     let gitignore = root.join("docs/pkg/.gitignore");
     if gitignore.exists() {
         fs::remove_file(&gitignore).map_err(|e| format!("remove .gitignore: {}", e))?;
