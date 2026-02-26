@@ -431,4 +431,16 @@ mod tests {
         let mut e = TelexEngine::new();
         assert_eq!(type_word(&mut e, "toas"), "tóa");
     }
+
+    #[test]
+    fn tone_with_gi_cluster() {
+        let mut e = TelexEngine::new();
+        assert_eq!(type_word(&mut e, "gias"), "giá");
+    }
+
+    #[test]
+    fn tone_with_qu_cluster() {
+        let mut e = TelexEngine::new();
+        assert_eq!(type_word(&mut e, "quas"), "quá");
+    }
 }

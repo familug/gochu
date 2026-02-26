@@ -93,7 +93,7 @@ State: `buf: Vec<char>` (composed output), `raw: Vec<char>` (telex keystrokes), 
 `process_key(char) -> Action` where Action is `Composing(String)` or `Commit(String)`.
 
 The engine calls `classify_key` then pattern-matches the effect:
-- `Backspace` → pops from `raw`, calls `transform::replay()` to reconstruct `buf`
+- `Backspace` → deletes exactly **one displayed character** from the right, even if that character was produced by multiple Telex keystrokes (vowel mods + tone). Internally, the engine tracks for each raw key which buffer indices it touched, then drops all raw keys that affected the last character and rebuilds `buf` via `replay()`. This keeps tone on the preceding vowel in cases like `"phucs"` → `"phúc"`: Backspace removes the trailing `c` but preserves `"phú"`, while still treating composed characters like `"cộ"` (typed `"cooxj"`) as a single unit (`"cộ"` → `"c"`).
 - `Commit` → flushes display + commit char, resets state
 - All others → pushes to `raw`, calls `apply_effect` to update `buf`
 
@@ -102,9 +102,10 @@ The engine calls `classify_key` then pattern-matches the effect:
 Rules in priority:
 1. Single vowel → tone on it
 2. Exactly one modified vowel (â, ê, ô, ơ, ư, ă) → tone on it
-3. Multiple modified vowels (e.g. ươ) → fall through to cluster rules
-4. 3+ vowel cluster → tone on second vowel
-5. 2-vowel cluster: closed syllable (final consonant) → second vowel, open → first vowel
+3. Leading `gi` / `qu` at the start of the syllable are treated as consonant clusters when followed by another vowel, so tones fall on the main vowel (e.g. `gias` → `giá`, `quas` → `quá`).
+4. Multiple modified vowels (e.g. ươ) → fall through to cluster rules
+5. 3+ vowel cluster → tone on second vowel
+6. 2-vowel cluster: closed syllable (final consonant) → second vowel, open → first vowel
 
 ### Tone Table (tone.rs)
 
@@ -142,7 +143,11 @@ Minimal static site, deployable to GitHub Pages as-is (no build step needed beyo
 - After any change that affects the web demo (e.g. `gochu-core`, `gochu-wasm`, or `docs/`), **run `./build.sh`** so `docs/pkg/` is rebuilt. Commit updated `docs/pkg/` and any changed `docs/*.js` / `docs/*.html` / `docs/*.css`. GitHub Pages does not build; it only serves what you push.
 - When you change behavior (keyboard handling, Telex semantics, UI), update `docs/main.js` / `docs/index.html` / `docs/style.css` as needed so the live site reflects the latest behavior.
 
-**Input handling (`main.js`):** Two-layer text model — `committed` (finalized string) and the engine's composing buffer. On each keydown, feeds key to `gochu.process_key()`. On "commit" action, appends to `committed` and resets engine. Textarea always shows `committed + composing`.
+**Input handling (`main.js`):**
+
+- Two-layer text model — `committed` (finalized string) and the engine's composing buffer. Textarea always shows `committed + composing`.
+- Primary input path is `beforeinput` (`insertText`, `deleteContentBackward`, `insertLineBreak`) so that mobile keyboards (Gboard, Samsung, iOS) work reliably; `keydown` is only a fallback for Tab/Backspace/Enter and desktop.
+- IME composition (`compositionstart` / `compositionend`) is passed through to the browser and only the final composed text from `compositionend` is fed into the engine. This keeps predictive / swipe keyboards working while still applying Telex rules.
 
 ## Tests
 
@@ -173,6 +178,7 @@ cd docs && python3 -m http.server 8080
 cargo audit
 
 # Release a new version (bump crates, test, rebuild web demo, commit, tag, push)
+# Prereqs: clean git tree, push access, `wasm-pack` on PATH.
 cargo run -p xtask -- release <VERSION>
 # Example: cargo run -p xtask -- release 0.4.0
 ```
@@ -188,6 +194,8 @@ cargo run -p xtask -- release <VERSION>
 | ow    | ơ      | j     | nặng (.) |
 | uw    | ư      | z     | remove tone |
 | dd    | đ      |       |        |
+
+`dd` / `DD` / `Dd` / `dD` all map to đ/Đ; the case of the **first** character controls the result (`Dd` → `Đ`, `dD` → `đ`).
 
 ## Native IBus Engine (gochu-ibus)
 

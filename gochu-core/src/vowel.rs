@@ -53,7 +53,7 @@ pub fn modify_vowel(base: char, modifier: char) -> Option<char> {
 /// `vowel_indices` is a list of indices into the buffer that are vowels.
 /// Returns the index into the buffer.
 pub fn tone_position(buf: &[char]) -> Option<usize> {
-    let vowel_positions: Vec<usize> = buf
+    let mut vowel_positions: Vec<usize> = buf
         .iter()
         .enumerate()
         .filter(|(_, c)| is_vowel(**c))
@@ -63,6 +63,32 @@ pub fn tone_position(buf: &[char]) -> Option<usize> {
     if vowel_positions.is_empty() {
         return None;
     }
+
+    // Treat leading "gi" / "qu" as consonant clusters when followed by
+    // another vowel, so tones fall on the main vowel:
+    // - "gias" → "giá" (tone on 'a', not 'i')
+    // - "quas" → "quá" (tone on 'a', not 'u')
+    if vowel_positions.len() >= 2 {
+        if let Some(first) = vowel_positions.get(0).copied() {
+            if first == 1 {
+                let second = vowel_positions[1];
+                let first_char = buf.get(0).copied().unwrap_or_default();
+                let second_char = buf.get(1).copied().unwrap_or_default();
+                let is_gi_cluster = matches!(first_char, 'g' | 'G')
+                    && matches!(second_char, 'i' | 'I')
+                    && is_vowel(buf[second]);
+                let is_qu_cluster = matches!(first_char, 'q' | 'Q')
+                    && matches!(second_char, 'u' | 'U')
+                    && is_vowel(buf[second]);
+
+                if is_gi_cluster || is_qu_cluster {
+                    // Drop the glide vowel from consideration.
+                    vowel_positions.remove(0);
+                }
+            }
+        }
+    }
+
     if vowel_positions.len() == 1 {
         return Some(vowel_positions[0]);
     }
