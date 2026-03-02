@@ -125,7 +125,7 @@ fn run_cmd(root: &Path, bin: &str, args: &[&str]) -> Result<(), String> {
 fn run_wasm_build(root: &Path) -> Result<(), String> {
     let out = Command::new("wasm-pack")
         .current_dir(root)
-        .args(["build", "gochu-wasm", "--target", "web", "--out-dir", "docs/pkg"])
+        .args(["build", "gochu-wasm", "--target", "web", "--out-dir", "../docs/pkg"])
         .output()
         .map_err(|e| format!("wasm-pack: {}. Is wasm-pack installed? (cargo install wasm-pack)", e))?;
     if !out.status.success() {

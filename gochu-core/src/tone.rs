@@ -41,7 +41,7 @@ pub fn apply_tone(base: char, tone: Tone) -> char {
 
 pub fn strip_tone(c: char) -> char {
     for row in TONE_TABLE {
-        if row.iter().any(|&x| x == c) {
+        if row.contains(&c) {
             return row[0];
         }
     }

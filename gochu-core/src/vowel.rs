@@ -69,10 +69,10 @@ pub fn tone_position(buf: &[char]) -> Option<usize> {
     // - "gias" → "giá" (tone on 'a', not 'i')
     // - "quas" → "quá" (tone on 'a', not 'u')
     if vowel_positions.len() >= 2 {
-        if let Some(first) = vowel_positions.get(0).copied() {
+        if let Some(first) = vowel_positions.first().copied() {
             if first == 1 {
                 let second = vowel_positions[1];
-                let first_char = buf.get(0).copied().unwrap_or_default();
+                let first_char = buf.first().copied().unwrap_or_default();
                 let second_char = buf.get(1).copied().unwrap_or_default();
                 let is_gi_cluster = matches!(first_char, 'g' | 'G')
                     && matches!(second_char, 'i' | 'I')
@@ -120,7 +120,7 @@ pub fn tone_position(buf: &[char]) -> Option<usize> {
     }
 }
 
-pub fn apply_tone_to_buffer(buf: &mut Vec<char>, tone: Tone) -> bool {
+pub fn apply_tone_to_buffer(buf: &mut [char], tone: Tone) -> bool {
     if let Some(pos) = tone_position(buf) {
         buf[pos] = apply_tone(buf[pos], tone);
         return true;
@@ -128,7 +128,7 @@ pub fn apply_tone_to_buffer(buf: &mut Vec<char>, tone: Tone) -> bool {
     false
 }
 
-pub fn remove_tone_from_buffer(buf: &mut Vec<char>) -> bool {
+pub fn remove_tone_from_buffer(buf: &mut [char]) -> bool {
     apply_tone_to_buffer(buf, Tone::None)
 }
 

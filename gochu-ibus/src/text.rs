@@ -14,7 +14,6 @@
 /// We use `Field` — a thin wrapper that reports the *contained* type's
 /// signature via `Value::value_signature()` — so that strings contribute "s",
 /// dicts contribute "a{sv}", etc.
-
 use std::collections::HashMap;
 use zbus::zvariant::{Array, Dict, DynamicType, Signature, StructureBuilder, Value};
 
@@ -57,13 +56,13 @@ impl<'a> From<Field<'a>> for Value<'a> {
 
 fn empty_attachments<'a>() -> Value<'a> {
     Value::Dict(
-        Dict::try_from(HashMap::<String, Value<'a>>::new()).expect("empty a{sv} dict"),
+        Dict::from(HashMap::<String, Value<'a>>::new()),
     )
 }
 
 fn empty_attr_array<'a>() -> Value<'a> {
     Value::Array(
-        Array::try_from(Vec::<Value<'a>>::new()).expect("empty av array"),
+        Array::from(Vec::<Value<'a>>::new()),
     )
 }
 

@@ -16,7 +16,7 @@ pub enum Action {
 /// Thin stateful wrapper around the pure Telex transformation functions.
 /// All business logic lives in `transform`; this struct only manages
 /// the mutable buffer and raw-key history.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TelexEngine {
     buf: Vec<char>,
     raw: Vec<char>,
@@ -25,11 +25,7 @@ pub struct TelexEngine {
 
 impl TelexEngine {
     pub fn new() -> Self {
-        Self {
-            buf: Vec::new(),
-            raw: Vec::new(),
-            composing: false,
-        }
+        Self::default()
     }
 
     pub fn reset(&mut self) {

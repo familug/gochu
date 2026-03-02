@@ -123,20 +123,10 @@ fn try_vowel_modify(key: char, buf: &[char]) -> Option<KeyEffect> {
     None
 }
 
-fn try_w(key: char, buf: &[char]) -> KeyEffect {
-    // First try modifying existing u/o
-    for i in (0..buf.len()).rev() {
-        let c = buf[i];
-        if let Some(modified) = modify_vowel(c, key) {
-            return KeyEffect::VowelModified {
-                position: i,
-                replacement: modified,
-            };
-        }
-        if !is_vowel(c) {
-            break;
-        }
-    }
+fn try_w(key: char, _buf: &[char]) -> KeyEffect {
+    // Vowel modification (u→ư, o→ơ) is already handled by try_vowel_modify,
+    // which runs before try_w in classify_key. We only reach here when no
+    // modifiable vowel was found, so emit standalone ư/Ư.
     let ch = if key == 'W' { 'Ư' } else { 'ư' };
     KeyEffect::WAsVowel(ch)
 }

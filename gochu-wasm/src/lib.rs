@@ -6,13 +6,19 @@ pub struct Gochu {
     engine: TelexEngine,
 }
 
+impl Default for Gochu {
+    fn default() -> Self {
+        Self {
+            engine: TelexEngine::new(),
+        }
+    }
+}
+
 #[wasm_bindgen]
 impl Gochu {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        Self {
-            engine: TelexEngine::new(),
-        }
+        Self::default()
     }
 
     /// Feed a single character. Returns a JS object: { type: "composing"|"commit", text: "..." }

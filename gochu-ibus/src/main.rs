@@ -29,6 +29,11 @@ pub(crate) fn log(msg: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    // These tests mutate process-wide state (env vars + shared log file),
+    // so they must not run concurrently with each other.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn clear_log_file() {
         let _ = std::fs::remove_file(LOG_PATH);
@@ -40,8 +45,9 @@ mod tests {
 
     #[test]
     fn log_is_noop_without_debug_env() {
+        let _guard = ENV_LOCK.lock().unwrap();
         clear_log_file();
-        env::remove_var("GOCHU_DEBUG");
+        unsafe { env::remove_var("GOCHU_DEBUG") };
 
         log("USER_INPUT_SHOULD_NOT_BE_LOGGED");
 
@@ -54,8 +60,9 @@ mod tests {
 
     #[test]
     fn log_writes_only_when_debug_env_set() {
+        let _guard = ENV_LOCK.lock().unwrap();
         clear_log_file();
-        env::set_var("GOCHU_DEBUG", "1");
+        unsafe { env::set_var("GOCHU_DEBUG", "1") };
 
         log("GOCHU_DEBUG_TEST_LINE");
 
@@ -64,6 +71,9 @@ mod tests {
             contents.contains("GOCHU_DEBUG_TEST_LINE"),
             "log file did not contain expected debug line"
         );
+
+        // Clean up: remove env var so other tests aren't affected.
+        unsafe { env::remove_var("GOCHU_DEBUG") };
     }
 }
 
@@ -184,7 +194,7 @@ fn find_ibus_address() -> Option<String> {
                     .metadata()
                     .and_then(|m| m.modified())
                     .unwrap_or(std::time::UNIX_EPOCH);
-                if best.as_ref().map_or(true, |(t, _)| mtime > *t) {
+                if best.as_ref().is_none_or(|(t, _)| mtime > *t) {
                     best = Some((mtime, addr.to_string()));
                 }
             }
