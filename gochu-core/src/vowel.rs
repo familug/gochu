@@ -71,15 +71,12 @@ pub fn tone_position(buf: &[char]) -> Option<usize> {
     if vowel_positions.len() >= 2 {
         if let Some(first) = vowel_positions.first().copied() {
             if first == 1 {
-                let second = vowel_positions[1];
                 let first_char = buf.first().copied().unwrap_or_default();
                 let second_char = buf.get(1).copied().unwrap_or_default();
                 let is_gi_cluster = matches!(first_char, 'g' | 'G')
-                    && matches!(second_char, 'i' | 'I')
-                    && is_vowel(buf[second]);
+                    && matches!(second_char, 'i' | 'I');
                 let is_qu_cluster = matches!(first_char, 'q' | 'Q')
-                    && matches!(second_char, 'u' | 'U')
-                    && is_vowel(buf[second]);
+                    && matches!(second_char, 'u' | 'U');
 
                 if is_gi_cluster || is_qu_cluster {
                     // Drop the glide vowel from consideration.

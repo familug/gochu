@@ -1,6 +1,7 @@
 use std::env;
 use std::error::Error;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 mod engine;
 mod text;
@@ -8,10 +9,17 @@ mod text;
 const BUS_NAME: &str = "org.freedesktop.IBus.Gochu";
 const LOG_PATH: &str = "/tmp/gochu-ibus.log";
 
+static DEBUG: AtomicBool = AtomicBool::new(false);
+
+/// Check the environment once and latch the debug flag for the process lifetime.
+pub(crate) fn init_logging() {
+    DEBUG.store(env::var_os("GOCHU_DEBUG").is_some(), Ordering::Relaxed);
+}
+
 pub(crate) fn log(msg: &str) {
     // Debug logging is intended for development only. It does not record any
-    // user text content and is disabled unless GOCHU_DEBUG is set.
-    if env::var_os("GOCHU_DEBUG").is_none() {
+    // user text content and is disabled unless GOCHU_DEBUG was set at startup.
+    if !DEBUG.load(Ordering::Relaxed) {
         return;
     }
 
@@ -31,9 +39,8 @@ mod tests {
     use super::*;
     use std::sync::Mutex;
 
-    // These tests mutate process-wide state (env vars + shared log file),
-    // so they must not run concurrently with each other.
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
+    // These tests share a log file, so they must not run concurrently.
+    static LOG_LOCK: Mutex<()> = Mutex::new(());
 
     fn clear_log_file() {
         let _ = std::fs::remove_file(LOG_PATH);
@@ -44,36 +51,36 @@ mod tests {
     }
 
     #[test]
-    fn log_is_noop_without_debug_env() {
-        let _guard = ENV_LOCK.lock().unwrap();
+    fn log_is_noop_without_debug() {
+        let _guard = LOG_LOCK.lock().unwrap();
         clear_log_file();
-        unsafe { env::remove_var("GOCHU_DEBUG") };
+        DEBUG.store(false, Ordering::Relaxed);
 
         log("USER_INPUT_SHOULD_NOT_BE_LOGGED");
 
-        // Without GOCHU_DEBUG, log must not create or write the file.
+        // Without debug enabled, log must not create or write the file.
         assert!(
             !std::path::Path::new(LOG_PATH).exists(),
-            "log() should not create a log file when GOCHU_DEBUG is unset"
+            "log() should not create a log file when debug is disabled"
         );
     }
 
     #[test]
-    fn log_writes_only_when_debug_env_set() {
-        let _guard = ENV_LOCK.lock().unwrap();
+    fn log_writes_when_debug_enabled() {
+        let _guard = LOG_LOCK.lock().unwrap();
         clear_log_file();
-        unsafe { env::set_var("GOCHU_DEBUG", "1") };
+        DEBUG.store(true, Ordering::Relaxed);
 
         log("GOCHU_DEBUG_TEST_LINE");
 
-        let contents = read_log().expect("log file should exist when GOCHU_DEBUG is set");
+        let contents = read_log().expect("log file should exist when debug is enabled");
         assert!(
             contents.contains("GOCHU_DEBUG_TEST_LINE"),
             "log file did not contain expected debug line"
         );
 
-        // Clean up: remove env var so other tests aren't affected.
-        unsafe { env::remove_var("GOCHU_DEBUG") };
+        // Clean up.
+        DEBUG.store(false, Ordering::Relaxed);
     }
 }
 
@@ -92,6 +99,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         eprintln!("  ibus restart");
         std::process::exit(1);
     }
+
+    init_logging();
 
     let conn = connect_ibus().await?;
 

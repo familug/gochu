@@ -158,6 +158,20 @@ async function main() {
     feedString(e.key);
   });
 
+  editor.addEventListener('cut', (e) => {
+    if (!enabled) return;
+    e.preventDefault();
+    flushComposing();
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const selected = committed.substring(start, end);
+    if (selected) {
+      e.clipboardData.setData('text/plain', selected);
+      committed = committed.substring(0, start) + committed.substring(end);
+    }
+    syncEditor();
+  });
+
   editor.addEventListener('paste', (e) => {
     if (!enabled) return;
     e.preventDefault();

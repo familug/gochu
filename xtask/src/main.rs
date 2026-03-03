@@ -45,11 +45,12 @@ fn release(new_version: &str) -> Result<(), String> {
     eprintln!("Current version: {}", current);
     eprintln!("New version:     {}", new_version);
 
-    // 3. Bump version in all three crates
+    // 3. Bump version in all three crates + IBus component XML
     for name in ["gochu-core", "gochu-wasm", "gochu-ibus"] {
         let path = root.join(name).join("Cargo.toml");
         bump_version(&path, &current, new_version)?;
     }
+    bump_xml_version(root, &current, new_version)?;
 
     // 4. Run tests
     eprintln!("Running tests...");
@@ -62,7 +63,7 @@ fn release(new_version: &str) -> Result<(), String> {
 
     // 6. Git add, commit, tag, push
     let tag = format!("v{}", new_version);
-    git_add(root, &["gochu-core/Cargo.toml", "gochu-wasm/Cargo.toml", "gochu-ibus/Cargo.toml", "docs/pkg", "docs/version.js", "Cargo.lock"])?;
+    git_add(root, &["gochu-core/Cargo.toml", "gochu-wasm/Cargo.toml", "gochu-ibus/Cargo.toml", "gochu-ibus/data/gochu.xml", "docs/pkg", "docs/version.js", "Cargo.lock"])?;
     git_commit(root, &format!("Bump version to {} and rebuild web demo", new_version))?;
     git_tag(root, &tag)?;
     git_push(root, "main")?;
@@ -105,8 +106,21 @@ fn bump_version(path: &Path, current: &str, new_version: &str) -> Result<(), Str
     if !s.contains(&needle) {
         return Err(format!("{}: did not find {}", path.display(), needle));
     }
-    let new_s = s.replace(&needle, &replacement);
+    let new_s = s.replacen(&needle, &replacement, 1);
     fs::write(path, new_s).map_err(|e| format!("write {}: {}", path.display(), e))?;
+    Ok(())
+}
+
+fn bump_xml_version(root: &Path, current: &str, new_version: &str) -> Result<(), String> {
+    let path = root.join("gochu-ibus/data/gochu.xml");
+    let s = fs::read_to_string(&path).map_err(|e| format!("read {}: {}", path.display(), e))?;
+    let needle = format!("<version>{}</version>", current);
+    let replacement = format!("<version>{}</version>", new_version);
+    if !s.contains(&needle) {
+        return Err(format!("{}: did not find {}", path.display(), needle));
+    }
+    let new_s = s.replace(&needle, &replacement);
+    fs::write(&path, new_s).map_err(|e| format!("write {}: {}", path.display(), e))?;
     Ok(())
 }
 

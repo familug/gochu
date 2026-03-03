@@ -8,6 +8,7 @@ use alloc::vec::Vec;
 use crate::transform::{self, KeyEffect};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[must_use]
 pub enum Action {
     Composing(String),
     Commit(String),
