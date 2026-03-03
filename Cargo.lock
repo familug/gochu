@@ -417,11 +417,11 @@ dependencies = [
 
 [[package]]
 name = "gochu-core"
-version = "0.4.4"
+version = "0.4.5"
 
 [[package]]
 name = "gochu-ibus"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "gochu-core",
  "serde",
@@ -431,7 +431,7 @@ dependencies = [
 
 [[package]]
 name = "gochu-wasm"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "gochu-core",
  "js-sys",
