@@ -3,9 +3,46 @@
 Rust Vietnamese Telex engine with two frontends:
 
 - **Web**: WASM demo under `docs/` (for GitHub Pages).
-- **IBus**: native input method engine for Linux desktops.
+- **IBus / fcitx5**: native input method engine for Linux desktops.
 
-This guide focuses on setting up the IBus engine.
+The same `gochu-ibus` binary works for both IBus and fcitx5 (via the
+`fcitx5-ibus` compatibility layer). This guide covers both.
+
+---
+
+### Using with fcitx5 (Arch, Manjaro, KDE Plasma)
+
+`fcitx5-ibus` is a compatibility module shipped with fcitx5 that lets it load
+and run standard IBus engines. `gochu-ibus` works unchanged — no separate
+build is needed.
+
+**Step 1 — Install the compatibility layer** (if not already present):
+
+```bash
+# Arch / Manjaro
+sudo pacman -S fcitx5-ibus
+
+# Ubuntu / Debian
+sudo apt install fcitx5-ibus
+```
+
+**Step 2 — Install `gochu-ibus`** (binary + component XML) using any method
+described below under *IBus* (the component XML path is the same).
+
+**Step 3 — Restart fcitx5** so it picks up the new engine:
+
+```bash
+fcitx5 -r &
+```
+
+**Step 4 — Add the engine** in fcitx5-configtool:
+
+1. Open *fcitx5-configtool* → *Input Method* → click **+**.
+2. Search for **Gochu Telex** (it appears in the IBus category).
+3. Add it and close the dialog.
+4. Switch to it with your usual IM keybinding (default: `Ctrl`+`Space`).
+
+---
 
 ### Install using prebuilt binary (recommended)
 
@@ -13,7 +50,7 @@ If a prebuilt binary for your platform is available on the project’s GitHub Re
 
 Prerequisites:
 
-- IBus running on your desktop (e.g. GNOME, KDE, etc.).
+- IBus (or fcitx5 with `fcitx5-ibus`) running on your desktop.
 - `curl` and `sudo` available.
 
 1. **Download the prebuilt binary**
@@ -48,7 +85,7 @@ If there is no suitable prebuilt binary for your system, or you prefer to build 
 Prerequisites:
 
 - A recent Rust toolchain (`rustup` + `cargo`).
-- IBus running on your desktop (e.g. GNOME, KDE, etc.).
+- IBus (or fcitx5 with `fcitx5-ibus`) running on your desktop.
 
 Build the engine:
 

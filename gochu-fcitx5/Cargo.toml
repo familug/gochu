@@ -1,0 +1,16 @@
+[package]
+name = "gochu-fcitx5"
+version = "0.4.5"
+edition = "2021"
+
+[lib]
+name = "gochu_fcitx5"
+crate-type = ["cdylib"]
+
+[dependencies]
+gochu-core = { path = "../gochu-core", default-features = false }
+libc = "0.2"
+
+[build-dependencies]
+cc = "1"
+pkg-config = "0.3"

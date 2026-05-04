@@ -420,6 +420,16 @@ name = "gochu-core"
 version = "0.4.5"
 
 [[package]]
+name = "gochu-fcitx5"
+version = "0.4.5"
+dependencies = [
+ "cc",
+ "gochu-core",
+ "libc",
+ "pkg-config",
+]
+
+[[package]]
 name = "gochu-ibus"
 version = "0.4.5"
 dependencies = [
@@ -648,6 +658,12 @@ dependencies = [
  "fastrand",
  "futures-io",
 ]
+
+[[package]]
+name = "pkg-config"
+version = "0.3.33"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19f132c84eca552bf34cab8ec81f1c1dcc229b811638f9d283dceabe58c5569e"
 
 [[package]]
 name = "polling"

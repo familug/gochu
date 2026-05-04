@@ -78,6 +78,20 @@ async function main() {
     syncEditor();
   }
 
+  // Delete the range [start, end) from the combined committed+composing buffer.
+  // If the selection covers any composing characters, the composing state is reset.
+  function handleSelectionDeletion(start, end) {
+    if (end > committed.length) {
+      gochu.reset();
+    }
+    const delEnd = Math.min(end, committed.length);
+    if (start < delEnd) {
+      committed = committed.substring(0, start) + committed.substring(delEnd);
+    }
+    updatePreedit();
+    syncEditor();
+  }
+
   // Mobile keyboards (Samsung, GBoard, etc.) fire keydown with
   // key:'Unidentified' or key:'Process', so keydown alone misses all input.
   // beforeinput always carries the real data in e.data, on both mobile and
@@ -96,9 +110,17 @@ async function main() {
         return;
 
       case 'deleteContentBackward':
+      case 'deleteContentForward':
+      case 'deleteContent': {
         e.preventDefault();
-        handleBackspace();
+        const { selectionStart: s, selectionEnd: en } = editor;
+        if (s !== en) {
+          handleSelectionDeletion(s, en);
+        } else {
+          handleBackspace();
+        }
         return;
+      }
 
       case 'insertLineBreak':
       case 'insertParagraph':
@@ -130,9 +152,14 @@ async function main() {
     if (!enabled) return;
     if (e.ctrlKey || e.metaKey) return;
 
-    if (e.key === 'Backspace') {
+    if (e.key === 'Backspace' || e.key === 'Delete') {
       e.preventDefault();
-      handleBackspace();
+      const { selectionStart: s, selectionEnd: en } = editor;
+      if (s !== en) {
+        handleSelectionDeletion(s, en);
+      } else {
+        handleBackspace();
+      }
       return;
     }
 
@@ -161,15 +188,16 @@ async function main() {
   editor.addEventListener('cut', (e) => {
     if (!enabled) return;
     e.preventDefault();
-    flushComposing();
+    // Read selection before any state mutation (flushComposing moves cursor to end).
     const start = editor.selectionStart;
     const end = editor.selectionEnd;
-    const selected = committed.substring(start, end);
+    // Build the full visible text (committed + composing) so we can cut across the boundary.
+    const fullText = committed + gochu.get_display();
+    const selected = fullText.substring(start, end);
     if (selected) {
       e.clipboardData.setData('text/plain', selected);
-      committed = committed.substring(0, start) + committed.substring(end);
     }
-    syncEditor();
+    handleSelectionDeletion(start, end);
   });
 
   editor.addEventListener('paste', (e) => {

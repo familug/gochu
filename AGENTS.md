@@ -1,12 +1,12 @@
 # Gochu - Vietnamese Telex Input Engine
 
-Vietnamese Telex input method engine. Core written in Rust (no_std compatible), compiled to WASM for a web frontend, designed for future reuse as a native Linux IBus/Fcitx input method.
+Vietnamese Telex input method engine. Core written in Rust (no_std compatible), compiled to WASM for a web frontend, with native Linux input method support for both IBus and fcitx5.
 
 ## Project Structure
 
 ```
 gochu/
-├── Cargo.toml              # Workspace root (members: gochu-core, gochu-wasm, gochu-ibus), resolver = "2"
+├── Cargo.toml              # Workspace root (members: gochu-core, gochu-wasm, gochu-ibus, gochu-fcitx5), resolver = "2"
 ├── gochu-core/             # Pure Rust Telex engine — ZERO external dependencies
 │   ├── Cargo.toml          # Features: default=["std"], std=[]
 │   └── src/
@@ -19,14 +19,23 @@ gochu/
 │   ├── Cargo.toml          # crate-type = ["cdylib", "rlib"], deps: gochu-core (no default-features), wasm-bindgen, js-sys
 │   ├── src/lib.rs           # Gochu struct wrapping TelexEngine, exposed to JS
 │   └── tests/web.rs         # wasm-bindgen-test integration tests (run via Node.js)
-├── gochu-ibus/             # Native IBus input method engine (Linux + OpenBSD)
+├── gochu-ibus/             # Native IBus input method engine (Linux + OpenBSD); also works under fcitx5-ibus
 │   ├── Cargo.toml          # deps: gochu-core, zbus 4, tokio
 │   ├── src/
 │   │   ├── main.rs          # Entry point: IBus address lookup, D-Bus connection, factory registration
 │   │   ├── engine.rs        # IBus Engine + Factory D-Bus interfaces (wraps gochu-core TelexEngine)
 │   │   └── text.rs          # IBusText/IBusAttrList GVariant construction
 │   ├── data/gochu.xml       # IBus component descriptor (engine name, language, icon)
-│   └── install.sh           # Build + install binary and component XML
+│   └── install.sh           # Build + install binary and component XML; auto-detects IBus vs fcitx5
+├── gochu-fcitx5/           # Native fcitx5 input method addon (cdylib + C++ shim)
+│   ├── Cargo.toml          # crate-type = ["cdylib"], deps: gochu-core, libc; build-deps: cc, pkg-config
+│   ├── build.rs             # Finds Fcitx5Core via pkg-config, compiles shim/shim.cpp
+│   ├── shim/shim.cpp        # C++ bridge: implements fcitx5 AddonFactory + InputMethodEngine vtables,
+│   │                        #   calls extern "C" Rust fns; also defines gochu_ic_commit/update_preedit/clear_preedit
+│   ├── src/lib.rs           # Rust engine: TelexEngine state, extern "C" fns called from shim
+│   ├── data/gochu.conf      # fcitx5 addon descriptor (Category=InputMethod, Library=gochu_fcitx5)
+│   ├── data/gochu-im.conf   # fcitx5 input method metadata (LangCode=vi)
+│   └── install.sh           # Build + install .so + config files to /usr/lib/fcitx5/ etc.
 └── docs/                   # Static web frontend (no bundler), served by GitHub Pages from /docs
     ├── index.html           # Semantic HTML, accessibility attributes, meta tags
     ├── style.css            # All styles; CSS custom properties; light/dark via prefers-color-scheme; mobile breakpoint at 480px
@@ -146,7 +155,9 @@ Minimal static site, deployable to GitHub Pages as-is (no build step needed beyo
 **Input handling (`main.js`):**
 
 - Two-layer text model — `committed` (finalized string) and the engine's composing buffer. Textarea always shows `committed + composing`.
-- Primary input path is `beforeinput` (`insertText`, `deleteContentBackward`, `insertLineBreak`) so that mobile keyboards (Gboard, Samsung, iOS) work reliably; `keydown` is only a fallback for Tab/Backspace/Enter and desktop.
+- Primary input path is `beforeinput` (`insertText`, `deleteContentBackward`, `deleteContentForward`, `deleteContent`, `insertLineBreak`) so that mobile keyboards (Gboard, Samsung, iOS) work reliably; `keydown` is only a fallback for Tab/Backspace/Delete/Enter on desktop.
+- **Selection-aware deletion:** `deleteContentBackward`, `deleteContentForward`, and `deleteContent` all check `selectionStart !== selectionEnd` first. If there is a selection, `handleSelectionDeletion(start, end)` is called: if the selection covers composing text (`end > committed.length`) the engine is reset; then the covered range is deleted from `committed`. This makes Ctrl+A → Delete (and cut) work correctly.
+- The `cut` event also uses `handleSelectionDeletion` after reading the selection range — fixes a previous bug where `flushComposing()` was called first, moving the cursor to the end and making the selection stale.
 - IME composition (`compositionstart` / `compositionend`) is passed through to the browser and only the final composed text from `compositionend` is fed into the engine. This keeps predictive / swipe keyboards working while still applying Telex rules.
 
 ## Tests
@@ -158,6 +169,8 @@ Minimal static site, deployable to GitHub Pages as-is (no build step needed beyo
 - `engine::tests` — integration: full words, backspace, commit, passthrough, multi-word, uppercase
 
 7 integration tests in `gochu-wasm` via `wasm-bindgen-test` (Node.js).
+
+3 unit tests in `gochu-fcitx5` (pure Rust, no fcitx5 headers needed): basic Telex word, space commit, backspace-on-empty.
 
 ## Build Commands
 
@@ -173,6 +186,14 @@ wasm-pack test --node gochu-wasm
 
 # Serve locally
 cd docs && python3 -m http.server 8080
+
+# Build + install IBus engine (also works under fcitx5-ibus)
+cd gochu-ibus && sudo ./install.sh
+
+# Build + install native fcitx5 addon (requires fcitx5 dev headers)
+#   Arch/Manjaro: sudo pacman -S fcitx5
+#   Ubuntu/Debian: sudo apt install fcitx5-dev
+cd gochu-fcitx5 && sudo ./install.sh
 
 # Security audit
 cargo audit
@@ -251,3 +272,46 @@ ibus restart
 **Cross-platform notes:**
 - Ubuntu: IBus is the default. Component XML goes to `/usr/share/ibus/component/`.
 - OpenBSD: IBus available in ports (`pkg_add ibus`). Component XML goes to `/usr/local/share/ibus/component/`. Set `IBUS_COMPONENT_DIR` when running install.sh.
+- **Fcitx5 via fcitx5-ibus bridge:** Install `fcitx5-ibus` (`pacman -S fcitx5-ibus` / `apt install fcitx5-ibus`). The existing `gochu-ibus` binary and `gochu.xml` work unchanged; fcitx5 exposes an IBus-compatible socket. `install.sh` auto-detects whether fcitx5 or IBus is present and prints the appropriate activation instructions.
+
+## Native Fcitx5 Addon (gochu-fcitx5)
+
+A native fcitx5 input method engine implemented as a `cdylib` (`.so`) loaded directly by the fcitx5 daemon — no IBus bridge required.
+
+**Architecture:** Hybrid Rust + C++ shim. The fcitx5 addon API is C++ (vtable-based), so a small `shim/shim.cpp` implements `AddonFactory` and `InputMethodEngine` and delegates all Telex logic to `extern "C"` Rust functions in `src/lib.rs`. The C++ shim also exports the `gochu_ic_commit`, `gochu_ic_update_preedit`, and `gochu_ic_clear_preedit` helpers so that Rust can drive the `InputContext` API without needing C++ headers.
+
+**Build requirements:**
+- A C++17 compiler (GCC or Clang).
+- fcitx5 development headers (detected via `pkg-config Fcitx5Core`).
+  - Arch/Manjaro: `sudo pacman -S fcitx5`
+  - Ubuntu/Debian: `sudo apt install fcitx5-dev`
+
+**Key event flow:**
+- Modifier keys (Ctrl/Alt/Super): flush composing buffer, pass through.
+- Enter / KP_Enter: flush composing buffer, pass through.
+- Escape: discard composing buffer without committing (calls `gochu_escape`).
+- Printable ASCII + Backspace: forwarded to `TelexEngine::process_key()` via `gochu_key_event`.
+  - `Action::Composing(text)` → calls `gochu_ic_update_preedit` (updates fcitx5 preedit).
+  - `Action::Commit(text)` → calls `gochu_ic_clear_preedit` + `gochu_ic_commit`; key consumed.
+  - `Action::Commit("")` (Backspace on empty buffer) → key NOT consumed; application handles deletion.
+
+**Install:**
+
+```bash
+# Prereq: fcitx5 dev headers
+sudo pacman -S fcitx5    # Arch/Manjaro
+# sudo apt install fcitx5-dev  # Ubuntu/Debian
+
+# Build and install
+cd gochu-fcitx5
+sudo ./install.sh
+
+# Restart fcitx5
+fcitx5 -r &
+# Then open fcitx5-configtool, add "Gochu Telex"
+```
+
+**Install paths (defaults, override via env vars):**
+- `.so`: `$PREFIX/lib/fcitx5/libgochu_fcitx5.so` (`$FCITX5_ADDON_DIR`)
+- Addon config: `$PREFIX/share/fcitx5/addon/gochu.conf` (`$FCITX5_ADDON_CONF_DIR`)
+- IM config: `$PREFIX/share/fcitx5/inputmethod/gochu.conf` (`$FCITX5_IM_CONF_DIR`)

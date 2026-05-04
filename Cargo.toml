@@ -1,3 +1,3 @@
 [workspace]
-members = ["gochu-core", "gochu-wasm", "gochu-ibus", "xtask"]
+members = ["gochu-core", "gochu-wasm", "gochu-ibus", "gochu-fcitx5", "xtask"]
 resolver = "2"
