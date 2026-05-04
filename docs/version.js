@@ -1,1 +1,1 @@
-window.GOCHU_VERSION = { commit: "21da770", date: "2026-03-03T15:22:48Z" };
+window.GOCHU_VERSION = { commit: "117fb87", date: "2026-05-04T15:11:33Z" };
